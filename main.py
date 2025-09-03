@@ -16,7 +16,7 @@ root.geometry("1920x1080")
 
 def color_calibration_page_listener(camera_index: int, green: tuple, red: tuple):
     sleep(2) # todo: add sync between camera threads
-    GamePage(root, camera_index, BoardTransformation(green, red))
+    GamePage(root, camera_index, BoardTransformation(green, red, root))
 
 def camera_select_page_listener(camera_index: int):
     ColorCalibrationPage(root, camera_index, color_calibration_page_listener)
