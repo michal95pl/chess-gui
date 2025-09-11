@@ -1,8 +1,10 @@
 class Logger:
 
-    file_logger = open("gui.log", "a")
-
     @staticmethod
     def log(message: str):
-        Logger.file_logger.write(message + "\n")
-        Logger.file_logger.flush()
+        with open("gui.log", "a") as f:
+            f.write(message + "\n")
+
+    @staticmethod
+    def reset_log():
+        open("gui.log", "w").close()
