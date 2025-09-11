@@ -24,11 +24,6 @@ def color_calibration_page_listener(camera_index: int, green: tuple, red: tuple)
 def camera_select_page_listener(camera_index: int):
     ColorCalibrationPage(root, camera_index, color_calibration_page_listener)
 
-cv_img = cv2.imread('assets/board_test.png')
-cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-cv_img = cv2.resize(cv_img, (1000, 600))
-
-root.resizable(False, False)
 root.resizable(True, True)
 
 CameraSelectPage(root, camera_select_page_listener)
