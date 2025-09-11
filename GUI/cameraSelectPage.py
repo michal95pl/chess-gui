@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 import cv2
 
@@ -5,7 +6,7 @@ class CameraSelectPage:
 
     @staticmethod
     def __get_available_cameras(max_camera_index=3):
-        cam = []
+        cam = [-1]
         for i in range(max_camera_index):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
