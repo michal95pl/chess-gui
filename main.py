@@ -15,7 +15,7 @@ Logger.log("Chess GUI started.")
 root = tk.Tk()
 root.title("Chess GUI")
 root.iconphoto(False, tk.PhotoImage(file="assets/icon.png"))
-root.geometry("1920x1080")
+root.geometry("900x600")
 
 def color_calibration_page_listener(camera_index: int, green: tuple, red: tuple):
     sleep(2) # todo: add sync between camera threads
