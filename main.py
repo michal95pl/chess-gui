@@ -7,7 +7,10 @@ from GUI.colorCalibrationPage import ColorCalibrationPage
 from GUI.gamePage import GamePage
 from image_processing.board_transformation import BoardTransformation
 from time import sleep
+from utils.logger import Logger
 
+Logger.reset_log()
+Logger.log("Chess GUI started.")
 
 root = tk.Tk()
 root.title("Chess GUI")
