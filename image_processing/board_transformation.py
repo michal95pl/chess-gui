@@ -2,7 +2,49 @@ import cv2
 import numpy as np
 import tkinter as tk
 
+from utils.logger import Logger
+
+
 class BoardTransformation:
+
+    def __get_color_centers(self, mask, frame, color=(0, 255, 0), min_area=50):
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        centers = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area > min_area:
+                M = cv2.moments(cnt)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    centers.append((cx, cy))
+                    cv2.circle(frame, (cx, cy), 8, color, 2)
+        return centers
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def __rgb2hsv(self, rgb: tuple):
         color = np.uint8([[list(rgb)]])
@@ -14,20 +56,6 @@ class BoardTransformation:
         self.red_hsv_calibration = self.__rgb2hsv(red_calibration)
         self.root = root
 
-        self.a_val = tk.IntVar()
-        self.b_val = tk.IntVar()
-        self.c_val = tk.IntVar()
-        self.d_val = tk.IntVar()
-        self.e_val = tk.IntVar()
-        self.f_val = tk.IntVar()
-        #
-        # tk.Scale(root, from_=1, to=50, orient=tk.HORIZONTAL, label="a", variable=self.a_val).pack()
-        # tk.Scale(root, from_=1, to=100, orient=tk.HORIZONTAL, label="b", variable=self.b_val).pack()
-        # tk.Scale(root, from_=1, to=50, orient=tk.HORIZONTAL, label="c", variable=self.c_val).pack()
-        # tk.Scale(root, from_=1, to=50, orient=tk.HORIZONTAL, label="d", variable=self.d_val).pack()
-        # tk.Scale(root, from_=1, to=50, orient=tk.HORIZONTAL, label="e", variable=self.e_val).pack()
-        # tk.Scale(root, from_=1, to=50, orient=tk.HORIZONTAL, label="f", variable=self.f_val).pack()
-
     def __get_max_contour_area(contours):
         imax = 0
         max_area = 0
@@ -38,13 +66,6 @@ class BoardTransformation:
                 imax = i
                 max_area = area
         return contours[imax], max_area
-
-    def __get_center_of_circles(self, frame):
-        frame = cv2.medianBlur(frame, 5)
-        circles = cv2.HoughCircles(frame, cv2.HOUGH_GRADIENT, dp=15, minDist=80, param1=20, param2=20, minRadius=3,
-                                   maxRadius=22)
-
-        return circles[0, :, 0:2] if circles is not None else None
 
     def transform(self, frame):
         hsv_image = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
@@ -60,37 +81,18 @@ class BoardTransformation:
         red_mask = cv2.inRange(hsv_image, red_lower, red_upper)
         red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
 
+        green_centers = self.__get_color_centers(green_mask, frame, color=(0, 255, 0))
+        red_centers = self.__get_color_centers(red_mask, frame, color=(0, 0, 255))
 
-        green_centers = self.__get_center_of_circles(green_mask)
-        red_centers = self.__get_center_of_circles(red_mask)
-
-        if green_centers is None or red_centers is None or len(green_centers) != 2 or len(red_centers) != 1:
-            print("Error: Could not find board.") #todo: add logs
+        if green_centers is None or red_centers is None:
+            print("Error: Green and Red centers are not found.")
+            Logger.log("Error: Green and Red centers are not found.")
         else:
-            left_upper_point = red_centers[0]
+            print("Green and Red centers are found.")
+            Logger.log("Green and Red centers are found.")
 
-            print("x: ", red_centers[0][1] - green_centers[0][1])
-            print("y: ", red_centers[0][1] - green_centers[1][1])
-            print()
+        lewy_gorny_rog = red_centers[0]
+        
 
-            if green_centers[0][0] < green_centers[0][1]:
-
-                if red_centers[0][1] - green_centers[0][1] < 0 or red_centers[0][1] - green_centers[1][1] < 0:
-                    left_lower_point = green_centers[0]
-                    right_lower_point = green_centers[1]
-                else:
-                    left_lower_point = green_centers[1]
-                    right_lower_point = green_centers[0]
-            else:
-                if red_centers[0][1] - green_centers[0][1] < 0 or red_centers[0][1] - green_centers[1][1] < 0:
-                    left_lower_point = green_centers[1]
-                    right_lower_point = green_centers[0]
-                else:
-                    left_lower_point = green_centers[0]
-                    right_lower_point = green_centers[1]
-
-            cv2.circle(frame, (int(right_lower_point[0]), int(right_lower_point[1])), 10, (0, 255, 0), 2)
-            cv2.circle(frame, (int(left_lower_point[0]), int(left_lower_point[1])), 10, (0, 0, 255), 2)
-            cv2.circle(frame, (int(left_upper_point[0]), int(left_upper_point[1])), 10, (255, 0, 0), 2)
 
         return frame
