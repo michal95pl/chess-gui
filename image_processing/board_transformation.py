@@ -18,7 +18,7 @@ class BoardTransformation:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
                     centers.append((cx, cy))
-                    cv2.circle(frame, (cx, cy), 8, color, 2)
+                    #cv2.circle(frame, (cx, cy), 8, color, 2)
 
         return centers
 
@@ -68,7 +68,7 @@ class BoardTransformation:
 
         return frame
 
-    def transform_to_square(self, frame, corners, size=400):
+    def transform_to_square(self, frame, corners, size=800):
         src_pts = np.array([
             corners["top_left"],
             corners["top_right"],
@@ -89,7 +89,23 @@ class BoardTransformation:
 
         return warped
 
-
+    def crop_by_corners(self, frame, pattern_size=(7, 7), pad=91):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        found, corners = cv2.findChessboardCornersSB(gray, pattern_size, cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
+        if not found:
+            print("Nie wykryto wzorca.")
+            return None
+        corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1),
+                                   (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+        pts = corners.reshape(-1, 2)
+        x_min, y_min = np.min(pts, axis=0)
+        x_max, y_max = np.max(pts, axis=0)
+        h, w = frame.shape[:2]
+        x1 = max(int(x_min) - pad, 0)
+        y1 = max(int(y_min) - pad, 0)
+        x2 = min(int(x_max) + pad, w)
+        y2 = min(int(y_max) + pad, h)
+        return frame[y1:y2, x1:x2].copy()
 
 
 
@@ -155,6 +171,8 @@ class BoardTransformation:
             Logger.log("Green and Red centers are found.")
 
         corners = self.get_corners(red_centers, green_centers)
-        frame = self.transform_to_square(self.draw_diagonals(frame, corners), corners)
+        #frame = self.transform_to_square(self.draw_diagonals(frame, corners), corners)
+        frame = self.transform_to_square(frame, corners)
+        frame = self.crop_by_corners(frame)
 
         return frame
