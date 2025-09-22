@@ -1,7 +1,5 @@
 import tkinter as tk
 
-import cv2
-
 from GUI.cameraSelectPage import CameraSelectPage
 from GUI.colorCalibrationPage import ColorCalibrationPage
 from GUI.gamePage import GamePage
