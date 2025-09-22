@@ -3,6 +3,7 @@ import numpy as np
 import tkinter as tk
 
 from utils.logger import Logger
+from image_processing.board_identification import BoardIdentification
 
 
 class BoardTransformation:
@@ -78,9 +79,10 @@ class BoardTransformation:
 
         dst_pts = np.array([
             [0, 0],
-            [size - 1, 0],
+            [0, size - 1],
             [size - 1, size - 1],
-            [0, size - 1]
+            [size - 1, 0]
+
         ], dtype=np.float32)
 
         M = cv2.getPerspectiveTransform(src_pts, dst_pts)
@@ -89,7 +91,7 @@ class BoardTransformation:
 
         return warped
 
-    def crop_by_corners(self, frame, pattern_size=(7, 7), pad=91):
+    def crop_by_corners(self, frame, pattern_size=(7, 7), pad=91, output_size=800):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         found, corners = cv2.findChessboardCornersSB(gray, pattern_size, cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
         if not found:
@@ -105,7 +107,12 @@ class BoardTransformation:
         y1 = max(int(y_min) - pad, 0)
         x2 = min(int(x_max) + pad, w)
         y2 = min(int(y_max) + pad, h)
-        return frame[y1:y2, x1:x2].copy()
+
+        cropped = frame[y1:y2, x1:x2].copy()
+
+        resized = cv2.resize(cropped, (output_size, output_size), interpolation=cv2.INTER_LINEAR)
+
+        return resized
 
 
 
@@ -133,6 +140,7 @@ class BoardTransformation:
         self.green_hsv_calibration = self.__rgb2hsv(green_calibration)
         self.red_hsv_calibration = self.__rgb2hsv(red_calibration)
         self.root = root
+        self.identified_pieces = None
 
     def __get_max_contour_area(contours):
         imax = 0
@@ -175,4 +183,7 @@ class BoardTransformation:
         frame = self.transform_to_square(frame, corners)
         frame = self.crop_by_corners(frame)
 
+        self.identified_pieces = BoardIdentification(frame).identify()
         return frame
+
+
