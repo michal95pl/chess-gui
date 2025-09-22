@@ -114,23 +114,6 @@ class BoardTransformation:
 
         return resized
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def __rgb2hsv(self, rgb: tuple):
         color = np.uint8([[list(rgb)]])
         hsv_color = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
@@ -141,17 +124,6 @@ class BoardTransformation:
         self.red_hsv_calibration = self.__rgb2hsv(red_calibration)
         self.root = root
         self.identified_pieces = None
-
-    def __get_max_contour_area(contours):
-        imax = 0
-        max_area = 0
-        for i in range(len(contours)):
-            temp = contours[i]
-            area = cv2.contourArea(temp)
-            if area > max_area:
-                imax = i
-                max_area = area
-        return contours[imax], max_area
 
     def transform(self, frame):
         hsv_image = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
@@ -183,7 +155,7 @@ class BoardTransformation:
         frame = self.transform_to_square(frame, corners)
         frame = self.crop_by_corners(frame)
 
-        self.identified_pieces = BoardIdentification(frame).identify()
+        self.identified_pieces = BoardIdentification(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)).identify()
         return frame
 
 
