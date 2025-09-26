@@ -2,6 +2,7 @@ from multiprocessing.reduction import duplicate
 
 import cv2
 import os
+import glob
 
 @staticmethod
 def seperate(frame, flag):
@@ -77,6 +78,11 @@ def duplicate(square, filename, flag, steps = 20):
 
             cv2.imwrite(os.path.join(filename, f"square_darker_{flag}_{x*(360/steps)}_{y}.png"), darker)
             cv2.imwrite(os.path.join(filename, f"square_lighter_{flag}_{x*(360/steps)}_{y}.png"), lighter)
+
+
+
+#images = glob.glob("assets/chess_pieces/*/*.png")  # tylko PNG
+#print(f"Liczba zdjęć PNG: {len(images)}")
 
 seperate(cv2.imread('assets/ChessBoard1.png'), 1)
 seperate(cv2.imread('assets/ChessBoard2.png'), 2)
