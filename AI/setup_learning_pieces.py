@@ -63,7 +63,7 @@ def seperate(frame, flag):
                     os.makedirs(output_dir + f"/{color}_{figure}", exist_ok=True)
                     filename = os.path.join(output_dir + f"/{color}_{figure}", f"square_{flag}_{y}_{x}.png")
                     cv2.imwrite(filename, square)
-                    duplicate(square, output_dir + f"/{color}_{figure}", flag, y, x, 8, 16)
+                    duplicate(square, output_dir + f"/{color}_{figure}", flag, y, x, 4, 40)
                 else:
                     os.makedirs(output_dir + f"/{color}_{figure}", exist_ok=True)
                     filename = os.path.join(output_dir + f"/{color}_{figure}", f"square_{flag}_{y}_{x}.png")
@@ -71,28 +71,18 @@ def seperate(frame, flag):
                     duplicate(square, output_dir + f"/{color}_{figure}", flag, y, x)
 
             else:
-                os.makedirs(output_dir + f"/Empty", exist_ok=True)
-                filename = os.path.join(output_dir + f"/Empty", f"square_{flag}_{y}_{x}.png")
-                cv2.imwrite(filename, square)
-                duplicate(square, output_dir + f"/Empty", flag, y, x, 1, 4)
+                continue
 
 @staticmethod
-def duplicate(square, filename, flag, a, b, steps_r= 8, steps_h=8):
+def duplicate(square, filename, flag, a, b, steps_r= 4, steps_d=20):
     h, w = square.shape[:2]
     center = (w // 2, h // 2)
 
     for x in range(steps_r):
         M = cv2.getRotationMatrix2D(center, x*(360/steps_r), 1.0)
         square = cv2.warpAffine(square, M, (w, h))
-        for y in range(steps_h):
-            alpha_darker = 1.0 - (y / steps_h)
-            alpha_lighter = 1.0 + (y / steps_h)
-
-            darker = cv2.convertScaleAbs(square, alpha=alpha_darker, beta=0)
-            lighter = cv2.convertScaleAbs(square, alpha=alpha_lighter, beta=0)
-
-            cv2.imwrite(os.path.join(filename, f"square_darker_{flag}_{a}_{b}_{x*(360 / steps_r)}_{y}.png"), darker)
-            cv2.imwrite(os.path.join(filename, f"square_lighter_{flag}_{a}_{b}_{x*(360 / steps_r)}_{y}.png"), lighter)
+        for y in range(steps_d):
+            cv2.imwrite(os.path.join(filename, f"square_{flag}_{a}_{b}_{x*(360 / steps_r)}_{y}.png"), square)
 
 seperate(cv2.imread('../assets/ChessBoard1.png'), 1)
 seperate(cv2.imread('../assets/ChessBoard2.png'), 2)

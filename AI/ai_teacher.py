@@ -5,14 +5,14 @@ from ChessCNN import ChessCNN
 
 IMG_SIZE = 100
 DATASET_DIR = "../assets/chess_pieces"
-PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King", "Empty"]
-COLORS = ["W", "B", "None"]
+PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
+COLORS = ["W", "B"]
 
 # ---------- transforms ----------
 train_tf = A.Compose([
-    A.ShiftScaleRotate(shift_limit=0.08, scale_limit=0.08, rotate_limit=10,
-                       border_mode=cv2.BORDER_REFLECT, p=0.9),
-    A.ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.03, p=0.8),
+    A.ShiftScaleRotate(shift_limit=0.08, scale_limit=0.08, rotate_limit=180,
+                       border_mode=cv2.BORDER_REPLICATE, p=0.9),
+    A.ColorJitter(brightness=0.2, contrast=0.4, saturation=0.4, hue=0.08, p=0.8),
     A.HorizontalFlip(p=0.5),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
@@ -29,33 +29,13 @@ class ChessDataset(Dataset):
         self.transform = transform
         for folder in os.listdir(root):
             path = os.path.join(root, folder)
-            if not os.path.isdir(path):
-                continue
-            # --- normal cases ---
-            if folder == "Empty":
-                piece, color = "Empty", "None"
-            elif "_" in folder:
-                color, piece = folder.split("_", 1)
-            # --- fix single-letter colour folders ---
-            elif folder in {"B", "W"}:
-                # assume sub-folders inside give piece names
-                for sub in os.listdir(path):
-                    subpath = os.path.join(path, sub)
-                    if not os.path.isdir(subpath):
-                        continue
-                    piece = sub.split('_')[-1]  # last token
-                    color = folder  # B or W
-                    for fname in os.listdir(subpath):
-                        if fname.lower().endswith(('.png')):
-                            self.samples.append((os.path.join(subpath, fname), piece, color))
-                continue  # skip normal append below
-            else:
-                continue  # unknown folder name – skip
 
-            # normal append
+            color, piece = folder.split("_")
             for fname in os.listdir(path):
+                fnamepath = os.path.join(path, fname)
+
                 if fname.lower().endswith(('.png')):
-                    self.samples.append((os.path.join(path, fname), piece, color))
+                    self.samples.append((fnamepath, piece, color))
 
     def __len__(self): return len(self.samples)
     def __getitem__(self, idx):
@@ -98,11 +78,11 @@ def main():
     crit_color = torch.nn.CrossEntropyLoss(weight=color_weights.to(device))
 
     model = ChessCNN(len(PIECES), len(COLORS)).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-2)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=25)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=1e-2)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
     best = 0.
-    for epoch in range(25):
+    for epoch in range(30):
         model.train()
         running_loss, rp, rc, total = 0., 0., 0., 0
         for x, yp, yc in train_loader:

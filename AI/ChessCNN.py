@@ -1,11 +1,10 @@
 import torch.nn as nn
-import torch.nn.functional as F
 
 class ChessCNN(nn.Module):
-    def __init__(self, num_pieces: int = 7, num_colors: int = 3):
+    def __init__(self, num_pieces: int = 6, num_colors: int = 2):
         super().__init__()
-        # 3×100×100  --> 128×1×1
-        self.features = nn.Sequential(
+        # your exact original trunk
+        self.trunk = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
             nn.MaxPool2d(2),                               # 50×50
@@ -26,6 +25,8 @@ class ChessCNN(nn.Module):
         self.fc_color = nn.Linear(128, num_colors)
 
     def forward(self, x):
-        z = self.features(x)
-        z = self.fc(z)
-        return self.fc_piece(z), self.fc_color(z)
+        z = self.fc(self.trunk(x))          # shared 128-d features
+        piece_logits = self.fc_piece(z)
+        # colour head sees same features but gradient stops at piece
+        color_logits = self.fc_color(z.detach())
+        return piece_logits, color_logits
