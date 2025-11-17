@@ -1,11 +1,28 @@
-from multiprocessing.reduction import duplicate
-
 import cv2
 import os
 import glob
+import AI.Ellipse_crop
 
-@staticmethod
-def seperate(frame, flag):
+def cropp(square, filename):
+    ellipse_crop = AI.Ellipse_crop.EllipseCrop()
+    try:
+        square = ellipse_crop.apply(square)
+        cv2.imwrite(filename, square)
+    except ValueError:
+        print(f"Błąd przy cropie: {filename}, zapisuję oryginał")
+        cv2.imwrite(filename, square)
+
+def duplicate(square, filename, a, b, steps_r=4, steps_d=20):
+    h, w = square.shape[:2]
+    center = (w // 2, h // 2)
+
+    for x in range(steps_r):
+        M = cv2.getRotationMatrix2D(center, x*(360/steps_r), 1.0)
+        rotated = cv2.warpAffine(square, M, (w, h))
+        for y in range(steps_d):
+            cropp(rotated, os.path.join(filename, f"square_{a}_{b}_{x*(360 / steps_r)}_{y}.png"))
+
+def seperate(frame):
     output_dir = "../assets/chess_pieces"
     h, w, _ = frame.shape
     square_h = h // 8
@@ -15,7 +32,6 @@ def seperate(frame, flag):
         for x in range(8):
             y1, y2 = y * square_h, (y + 1) * square_h
             x1, x2 = x * square_w, (x + 1) * square_w
-
             square = frame[y1:y2, x1:x2]
 
             if y<=1 or y>=6:
@@ -23,9 +39,9 @@ def seperate(frame, flag):
                 figure = None
                 match y:
                     case 0 | 1:
-                        color = "W"
-                    case 6 | 7:
                         color = "B"
+                    case 6 | 7:
+                        color = "W"
 
                 if (y == 1 or y == 6) and (x == 0 or x == 1):
                     figure = "Pawn"
@@ -39,54 +55,26 @@ def seperate(frame, flag):
                             figure = "Knight"
                         case 2 | 5:
                             figure = "Bishop"
+                        case 3:
+                            figure = "King"
+                        case 4:
+                            figure = "Queen"
 
-                if flag==1:
-                    if y==0 and x==3:
-                        figure = "Queen"
-                    if y==0 and x==4:
-                        figure = "King"
-                    if y==7 and x==3:
-                        figure = "King"
-                    if y==7 and x==4:
-                        figure = "Queen"
-                elif flag==2:
-                    if y==0 and x==3:
-                        figure = "King"
-                    if y==0 and x==4:
-                        figure = "Queen"
-                    if y==7 and x==3:
-                        figure = "Queen"
-                    if y==7 and x==4:
-                        figure = "King"
-
-                if figure=="King" or figure=="Queen":
-                    os.makedirs(output_dir + f"/{color}_{figure}", exist_ok=True)
-                    filename = os.path.join(output_dir + f"/{color}_{figure}", f"square_{flag}_{y}_{x}.png")
-                    cv2.imwrite(filename, square)
-                    duplicate(square, output_dir + f"/{color}_{figure}", flag, y, x, 4, 40)
+                os.makedirs(output_dir + f"/{color}_{figure}", exist_ok=True)
+                filename = os.path.join(output_dir + f"/{color}_{figure}", f"square_{y}_{x}.png")
+                cropp(square, filename)
+                if figure in ["King", "Queen"]:
+                    duplicate(square, output_dir + f"/{color}_{figure}", y, x, 4, 40)
                 else:
-                    os.makedirs(output_dir + f"/{color}_{figure}", exist_ok=True)
-                    filename = os.path.join(output_dir + f"/{color}_{figure}", f"square_{flag}_{y}_{x}.png")
-                    cv2.imwrite(filename, square)
-                    duplicate(square, output_dir + f"/{color}_{figure}", flag, y, x)
-
+                    duplicate(square, output_dir + f"/{color}_{figure}", y, x)
             else:
                 continue
 
-@staticmethod
-def duplicate(square, filename, flag, a, b, steps_r= 4, steps_d=20):
-    h, w = square.shape[:2]
-    center = (w // 2, h // 2)
+# Uruchomienie
+seperate(cv2.imread('../assets/ChessBoard1.png'))
+seperate(cv2.imread('../assets/ChessBoard2.png'))
 
-    for x in range(steps_r):
-        M = cv2.getRotationMatrix2D(center, x*(360/steps_r), 1.0)
-        square = cv2.warpAffine(square, M, (w, h))
-        for y in range(steps_d):
-            cv2.imwrite(os.path.join(filename, f"square_{flag}_{a}_{b}_{x*(360 / steps_r)}_{y}.png"), square)
-
-seperate(cv2.imread('../assets/ChessBoard1.png'), 1)
-seperate(cv2.imread('../assets/ChessBoard2.png'), 2)
-
+# Liczenie wygenerowanych obrazów
 for folder in os.listdir('../assets/chess_pieces'):
-        images = glob.glob(f"../assets/chess_pieces/{folder}/*.png")
-        print(f"{folder}: {len(images)}")
+    images = glob.glob(f"../assets/chess_pieces/{folder}/*.png")
+    print(f"{folder}: {len(images)}")

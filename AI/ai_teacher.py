@@ -3,6 +3,7 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader, random_split
 from ChessCNN import ChessCNN
 
+
 IMG_SIZE = 100
 DATASET_DIR = "../assets/chess_pieces"
 PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
@@ -10,17 +11,23 @@ COLORS = ["W", "B"]
 
 # ---------- transforms ----------
 train_tf = A.Compose([
-    A.ShiftScaleRotate(shift_limit=0.08, scale_limit=0.08, rotate_limit=180,
-                       border_mode=cv2.BORDER_REPLICATE, p=0.9),
-    A.ColorJitter(brightness=0.2, contrast=0.4, saturation=0.4, hue=0.08, p=0.8),
-    A.HorizontalFlip(p=0.5),
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    A.Resize(120, 120),
+
+
+
+    # A.ShiftScaleRotate(
+    #     shift_limit=0.10,
+    #     scale_limit=0.10,
+    #     rotate_limit=30,
+    #     border_mode=cv2.BORDER_CONSTANT,
+    #     p=0.6
+    # ),
+
+    A.Normalize(mean=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ])
-val_tf = A.Compose([
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ToTensorV2()
-])
+
 
 # ---------- dataset ----------
 class ChessDataset(Dataset):
@@ -81,6 +88,8 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=1e-2)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
+    best_color = 0.
+    best_piece = 0.
     best = 0.
     for epoch in range(30):
         model.train()
@@ -101,12 +110,14 @@ def main():
         val_pa, val_ca = accuracy(model, val_loader, device)
         joint = (piece_acc + color_acc)/2
         print(f"epoch {epoch+1:02d}  loss {running_loss/len(train_loader):.3f}  "
-              f"train P{color_acc:.3f} C{piece_acc:.3f}  "
-              f"val P{val_ca:.3f} C{val_pa:.3f}")
+              f"train C{color_acc:.3f} P{piece_acc:.3f}  "
+              f"val C{val_ca:.3f} P{val_pa:.3f}")
         if joint > best:
             best = joint
+            best_piece = piece_acc
+            best_color = color_acc
             torch.save(model.state_dict(), "chess_best.pth")
-    print("Training done – best weights saved to chess_best.pth")
+    print("Training done – best weights saved to chess_best.pth", f"{best} = {best_color} {best_piece}")
 
 if __name__ == "__main__":
     main()
