@@ -7,6 +7,7 @@ def cropp(square, filename):
     ellipse_crop = AI.Ellipse_crop.EllipseCrop()
     try:
         square = ellipse_crop.apply(square)
+        _, square = cv2.threshold(square, 80, 255, cv2.THRESH_BINARY)
         cv2.imwrite(filename, square)
     except ValueError:
         print(f"Błąd przy cropie: {filename}, zapisuję oryginał")
@@ -37,11 +38,6 @@ def seperate(frame):
             if y<=1 or y>=6:
                 color = None
                 figure = None
-                match y:
-                    case 0 | 1:
-                        color = "B"
-                    case 6 | 7:
-                        color = "W"
 
                 if (y == 1 or y == 6) and (x == 0 or x == 1):
                     figure = "Pawn"
@@ -60,13 +56,13 @@ def seperate(frame):
                         case 4:
                             figure = "Queen"
 
-                os.makedirs(output_dir + f"/{color}_{figure}", exist_ok=True)
-                filename = os.path.join(output_dir + f"/{color}_{figure}", f"square_{y}_{x}.png")
+                os.makedirs(output_dir + f"/{figure}", exist_ok=True)
+                filename = os.path.join(output_dir + f"/{figure}", f"square_{y}_{x}.png")
                 cropp(square, filename)
                 if figure in ["King", "Queen"]:
-                    duplicate(square, output_dir + f"/{color}_{figure}", y, x, 4, 40)
+                    duplicate(square, output_dir + f"/{figure}", y, x, 4, 40)
                 else:
-                    duplicate(square, output_dir + f"/{color}_{figure}", y, x)
+                    duplicate(square, output_dir + f"/{figure}", y, x)
             else:
                 continue
 

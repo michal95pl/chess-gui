@@ -155,7 +155,7 @@ class BoardTransformation:
         frame = self.transform_to_square(frame, corners)
         frame = self.crop_by_corners(frame)
 
-        self.identified_pieces = BoardIdentification(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)).identify()
+        self.identified_pieces = BoardIdentification(frame).identify()
         return frame
 
 

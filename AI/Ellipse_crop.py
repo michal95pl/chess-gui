@@ -17,14 +17,55 @@ class EllipseCrop(A.ImageOnlyTransform):
             cv2.imshow(name, img)
             cv2.waitKey(self.timewait)
 
-    def apply(self, img, **params):
+    def find(self, img):
         H, W = img.shape[:2]
 
-        # ===== 1. PREPROCESS =====
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        self._show("Gray", gray)
+        # 1. Preprocessing taki sam jak w apply()
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        _, th = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        edges = cv2.Canny(th, 100, 150)
+        edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
 
-        _, th = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        max_area = H * W * self.max_area_ratio
+        best_area = -1
+        best_ellipse = None
+
+        # 2. Szukanie elipsy identycznie jak w apply()
+        for cnt in contours:
+            if len(cnt) < 5:
+                continue
+
+            area = cv2.contourArea(cnt)
+            if area < self.min_area or area > max_area:
+                continue
+
+            ellipse = cv2.fitEllipse(cnt)
+            (cx, cy), (w, h), angle = ellipse
+
+            if any([np.isnan(cx), np.isnan(cy), np.isnan(w), np.isnan(h)]):
+                continue
+
+            ratio = max(w, h) / min(w, h)
+            if ratio > 1.3:
+                continue
+
+            if area > best_area:
+                best_area = area
+                best_ellipse = ellipse
+
+        # 3. Zwróć tylko informację logiczną
+        return best_ellipse is not None
+
+    def apply(self, img, **params):
+        H, W = img.shape[:2]
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+        # ===== 1. PREPROCESS =====
+        self._show("Gray", img)
+
+        _, th = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         self._show("Threshold", th)
 
         edges = cv2.Canny(th, 100, 150)

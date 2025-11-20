@@ -7,49 +7,18 @@ from ChessCNN import ChessCNN
 IMG_SIZE = 100
 DATASET_DIR = "../assets/chess_pieces"
 PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
-COLORS = ["W", "B"]
 
 # ---------- transforms ----------
 train_tf = A.Compose([
-    A.Resize(30, 30), #30   0.782860824742268 = 0.5689432989690721 0.9967783505154639
-
-    #A.GridDistortion(),    #0.7493556701030928 = 0.532860824742268 0.9658505154639175
-
-    #A.SquareSymmetry(),    #0.7036082474226804 = 0.5837628865979382 0.8234536082474226
-
-    #A.RandomBrightnessContrast(),   #0.5969716494845361 = 0.4838917525773196 0.7100515463917526
-
-    #A.Defocus(),    #0.6498067010309279 = 0.5354381443298969 0.764175257731958
-
-    #A.ImageCompression(),
-
-    #A.PixelDropout(),
-
-    #A.Morphological(scale=(4,12)),
-
-    #A.AtLeastOneBBoxRandomCrop(height=800, width=800),
-
-    #A.Superpixels(),
-
-    #A.Defocus(),
-
-    #A.RandomGamma(),
-
-    #A.Posterize(),
-
-    #A.ImageCompression(),
-
+    A.Resize(30, 30),
     A.ShiftScaleRotate(
-        shift_limit=0.10,
-        scale_limit=0.10,
-        rotate_limit=15,
+        rotate_limit=10,
         border_mode=cv2.BORDER_REPLICATE,
-        p=0.5
-    ),    #0.9922680412371134
-
+        p=0.4
+    ),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0),
     ToTensorV2()
-])
+])  #0.9845360824742269
 
 
 # ---------- dataset ----------
@@ -61,7 +30,7 @@ class ChessDataset(Dataset):
 
         for folder in os.listdir(root):
             path = os.path.join(root, folder)
-            color, piece = folder.split("_")    # "B_Pawn" -> Pawn
+            piece = folder.title()
 
             for fname in os.listdir(path):
                 if fname.lower().endswith('.png'):
