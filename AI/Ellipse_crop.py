@@ -17,45 +17,48 @@ class EllipseCrop(A.ImageOnlyTransform):
             cv2.imshow(name, img)
             cv2.waitKey(self.timewait)
 
-    def find(self, img):
+    def find(self, img, thr):
         H, W = img.shape[:2]
 
-        # 1. Preprocessing taki sam jak w apply()
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        _, th = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        edges = cv2.Canny(th, 100, 150)
-        edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+        _, th = cv2.threshold(img, thr, 255, cv2.THRESH_BINARY)
+
+        edges = cv2.Canny(th, 80, 150)
+        edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), 1)
 
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         max_area = H * W * self.max_area_ratio
-        best_area = -1
         best_ellipse = None
+        best_area = -1
 
-        # 2. Szukanie elipsy identycznie jak w apply()
         for cnt in contours:
-            if len(cnt) < 5:
+            if len(cnt) < 30:  # odcięcie słabych konturów
                 continue
 
             area = cv2.contourArea(cnt)
             if area < self.min_area or area > max_area:
                 continue
 
-            ellipse = cv2.fitEllipse(cnt)
-            (cx, cy), (w, h), angle = ellipse
-
-            if any([np.isnan(cx), np.isnan(cy), np.isnan(w), np.isnan(h)]):
+            peri = cv2.arcLength(cnt, True)
+            circularity = 4 * np.pi * area / (peri * peri)
+            if circularity < 0.3:
                 continue
 
+            if len(cnt) < 5:
+                continue
+
+            ellipse = cv2.fitEllipse(cnt)
+            (_, _), (w, h), _ = ellipse
+
             ratio = max(w, h) / min(w, h)
-            if ratio > 1.3:
+            if ratio > 1.15:  # ciaśniejsze ratio
                 continue
 
             if area > best_area:
                 best_area = area
                 best_ellipse = ellipse
 
-        # 3. Zwróć tylko informację logiczną
         return best_ellipse is not None
 
     def apply(self, img, **params):

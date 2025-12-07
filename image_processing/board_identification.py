@@ -3,6 +3,7 @@ from AI.ChessCNN import ChessCNN
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from AI.Ellipse_crop import EllipseCrop
+import numpy as np
 
 val_tf = A.Compose([
     A.Resize(30, 30),
@@ -35,6 +36,55 @@ class BoardIdentification:
         img = val_tf(image=square)['image'].unsqueeze(0)
         return img.to(self.device)
 
+    def detect_color(self, sq, threshold=128):
+        h, w = sq.shape[:2]
+
+        ch, cw = h // 2, w // 2
+        roi = sq[ch - 1:ch + 1, cw - 1:cw + 1]
+
+        if len(roi.shape) == 3:
+            roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        else:
+            roi_gray = roi
+
+        mean_val = roi_gray.mean()
+
+        return "W" if mean_val > threshold else "B"
+
+    import cv2
+    import numpy as np
+
+    def get_local_threshold(self, row, col, blocks=4):
+        h, w = self.frame.shape[:2]
+
+        # rozmiar bloku 4x4
+        bh, bw = h // blocks, w // blocks
+
+        # ustalenie bloku (dla 8x8: 2 pola = 1 blok)
+        br = row // (8 // blocks)
+        bc = col // (8 // blocks)
+
+        # wycinamy blok
+        block = self.frame[br * bh:(br + 1) * bh, bc * bw:(bc + 1) * bw]
+
+        # grayscale
+        if len(block.shape) == 3:
+            gray = cv2.cvtColor(block, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = block
+
+        # histogram 0..255
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).flatten()
+
+        # dominujący ciemny odcień (0–127)
+        dark_mode = np.argmax(hist[1:128])
+        # dominujący jasny odcień (128–255)
+        bright_mode = np.argmax(hist[128:]) + 128
+
+        # threshold: środek pomiędzy dwoma odcieniami
+        thr = (dark_mode + bright_mode) / 2
+        return thr
+
     def identify(self, size=8):
         h, w = self.frame.shape[:2]
         sh, sw = h // size, w // size
@@ -44,14 +94,21 @@ class BoardIdentification:
                 row = []
                 for c in range(size):
                     sq = self.frame[r * sh:(r + 1) * sh, c * sw:(c + 1) * sw]
-                    _, sq = cv2.threshold(sq, 80, 255, cv2.THRESH_BINARY)
+                    thr = self.get_local_threshold(r, c)
+                    _, sq = cv2.threshold(sq, thr, 255, cv2.THRESH_BINARY)
+
                     ellipse_crop = EllipseCrop()
-                    if ellipse_crop.find(sq):
+                    #Jest jakiś problem, wykrywa kółko tam gdzie go nie ma
+                    if ellipse_crop.find(sq, thr):
                         sq = ellipse_crop.apply(sq)
+                        color = self.detect_color(sq)
+
                         img = self.preprocess(sq)
                         pp = self.model(img)
                         pi = pp.argmax(1).item()
-                        row.append(f"{self.pieces[pi]}")
+
+                        row.append(f"{color}_{self.pieces[pi]}")
+
                     else:
                         row.append("_")
                 board.append(row)

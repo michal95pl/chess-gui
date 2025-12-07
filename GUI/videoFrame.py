@@ -17,7 +17,7 @@ class VideoFrame(Thread):
         self.actual_frame = None
         self.board_transformation = board_transformation
         self.video_size = video_size
-        self.test_image_path = "assets/board_test.png"
+        self.test_image_path = "assets/board1.png"
 
         # create blank image for initialization
         blank_image = Image.new("RGB", (100, 100), color=(0, 0, 0))
