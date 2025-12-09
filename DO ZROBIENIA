@@ -1,0 +1,6 @@
+1. W board_transfromation pozbądź się własnoręcznych granic kolorów,
+tylko zamień je na automatyczne stwarzanie obszaru poszukiwanego koloru
+
+2. W Crop, poprawcuj jeszcze nad find, ponieważ nie zawsze znajduje
+
+3. Dopracuj jeszcze może automatyczny treshold w tresh_binary (setup_learning_pieces, board_identification)

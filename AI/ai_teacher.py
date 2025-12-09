@@ -14,11 +14,11 @@ train_tf = A.Compose([
     A.ShiftScaleRotate(
         rotate_limit=10,
         border_mode=cv2.BORDER_REPLICATE,
-        p=0.4
+        p=0.6
     ),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0),
     ToTensorV2()
-])  #0.9845360824742269
+])  #0.998
 
 
 # ---------- dataset ----------

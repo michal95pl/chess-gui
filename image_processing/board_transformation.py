@@ -18,7 +18,7 @@ class BoardTransformation:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
                     centers.append((cx, cy))
-                    #cv2.circle(frame, (cx, cy), 8, color, 2)
+                    cv2.circle(frame, (cx, cy), 8, color, 2)
 
         return centers
 
@@ -81,7 +81,6 @@ class BoardTransformation:
             [0, size - 1],
             [size - 1, size - 1],
             [size - 1, 0]
-
         ], dtype=np.float32)
 
         M = cv2.getPerspectiveTransform(src_pts, dst_pts)
@@ -125,21 +124,36 @@ class BoardTransformation:
         self.identified_pieces = None
 
     def transform(self, frame):
-        hsv_image = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        # 1. work on a clean copy – never draw before masking
+        clean = frame.copy()
 
-        # mask colors
-        green_upper = np.array([self.green_hsv_calibration[0]*1.4, self.green_hsv_calibration[1]*1.4, self.green_hsv_calibration[2]*1.4])
-        green_lower = np.array([self.green_hsv_calibration[0]*0.6, self.green_hsv_calibration[1]*0.6, self.green_hsv_calibration[2]*0.6])
-        green_mask = cv2.inRange(hsv_image, green_lower, green_upper)
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        hsv_image = cv2.cvtColor(clean, cv2.COLOR_RGB2HSV)
 
-        red_upper = np.array([self.red_hsv_calibration[0]*1.4, self.red_hsv_calibration[1]*1.4, self.red_hsv_calibration[2]*1.4])
-        red_lower = np.array([self.red_hsv_calibration[0]*0.6, self.red_hsv_calibration[1]*0.6, self.red_hsv_calibration[2]*0.6])
-        red_mask = cv2.inRange(hsv_image, red_lower, red_upper)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        # ------------------------------------------------------------------
+        # 2. build RED mask – use REAL hue of the dot you see *today*
+        #    (red wraps around 0° in HSV, so we need two ranges)
+        lower_red1 = np.array([0, 120, 70])
+        upper_red1 = np.array([10, 255, 255])
+        lower_red2 = np.array([170, 120, 70])
+        upper_red2 = np.array([180, 255, 255])
 
-        green_centers = self.__get_color_centers(green_mask, frame, color=(0, 255, 0))
-        red_centers = self.__get_color_centers(red_mask, frame, color=(0, 0, 255))
+        red_mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
+        red_mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
+        red_mask = cv2.bitwise_or(red_mask1, red_mask2)
+        # morphological clean-up
+        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN,
+                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+        # ------------------------------------------------------------------
+        # 3. build GREEN mask – same idea, tune once
+        lower_green = np.array([40, 80, 70])
+        upper_green = np.array([80, 255, 255])
+        green_mask = cv2.inRange(hsv_image, lower_green, upper_green)
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN,
+                                      cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+
+        # continue with your existing code …
+        green_centers = self.__get_color_centers(green_mask, clean, color=(0, 255, 0))
+        red_centers = self.__get_color_centers(red_mask, clean, color=(0, 0, 255))
 
         if green_centers is None or red_centers is None:
             print("Error: Green and Red centers are not found.")
@@ -150,9 +164,14 @@ class BoardTransformation:
             Logger.log("Green and Red centers are found.")
 
         corners = self.get_corners(red_centers, green_centers)
+        if corners is None:
+            print("Nie można wykonać transformacji – niewłaściwa liczba punktów.")
+            return frame
         #frame = self.transform_to_square(self.draw_diagonals(frame, corners), corners)
         frame = self.transform_to_square(frame, corners)
-        frame = self.crop_by_corners(frame)
+        cropped = self.crop_by_corners(frame)
+        if cropped is not None:
+            frame = cropped
 
         self.identified_pieces = BoardIdentification(frame).identify()
         return frame

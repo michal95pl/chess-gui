@@ -41,7 +41,7 @@ def cropp(square, filename):
         print(f"Błąd przy cropie: {filename}, zapisuję oryginał")
         cv2.imwrite(filename, square)
 
-def duplicate(square, filename, a, b, steps_r=4, steps_d=20):
+def duplicate(square, filename, a, b, steps_r=8, steps_d=20):
     h, w = square.shape[:2]
     center = (w // 2, h // 2)
 
@@ -88,7 +88,7 @@ def seperate(frame):
                 filename = os.path.join(output_dir + f"/{figure}", f"square_{y}_{x}.png")
                 cropp(square, filename)
                 if figure in ["King", "Queen"]:
-                    duplicate(square, output_dir + f"/{figure}", y, x, 4, 40)
+                    duplicate(square, output_dir + f"/{figure}", y, x, 8, 40)
                 else:
                     duplicate(square, output_dir + f"/{figure}", y, x)
             else:
