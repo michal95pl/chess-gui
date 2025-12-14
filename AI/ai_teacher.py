@@ -12,13 +12,15 @@ PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
 train_tf = A.Compose([
     A.Resize(30, 30),
     A.ShiftScaleRotate(
+        shift_limit=0.1,
+        scale_limit=0.1,
         rotate_limit=10,
         border_mode=cv2.BORDER_REPLICATE,
-        p=0.6
+        p=0.4
     ),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0),
     ToTensorV2()
-])  #0.998
+])
 
 
 # ---------- dataset ----------

@@ -3,6 +3,7 @@ from AI.ChessCNN import ChessCNN
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from AI.Ellipse_crop import EllipseCrop
+from image_processing import binary_treshold_finder
 import numpy as np
 
 val_tf = A.Compose([
@@ -51,40 +52,6 @@ class BoardIdentification:
 
         return "W" if mean_val > threshold else "B"
 
-    import cv2
-    import numpy as np
-
-    def get_local_threshold(self, row, col, blocks=4):
-        h, w = self.frame.shape[:2]
-
-        # rozmiar bloku 4x4
-        bh, bw = h // blocks, w // blocks
-
-        # ustalenie bloku (dla 8x8: 2 pola = 1 blok)
-        br = row // (8 // blocks)
-        bc = col // (8 // blocks)
-
-        # wycinamy blok
-        block = self.frame[br * bh:(br + 1) * bh, bc * bw:(bc + 1) * bw]
-
-        # grayscale
-        if len(block.shape) == 3:
-            gray = cv2.cvtColor(block, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = block
-
-        # histogram 0..255
-        hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).flatten()
-
-        # dominujący ciemny odcień (0–127)
-        dark_mode = np.argmax(hist[1:128])
-        # dominujący jasny odcień (128–255)
-        bright_mode = np.argmax(hist[128:]) + 128
-
-        # threshold: środek pomiędzy dwoma odcieniami
-        thr = (dark_mode + bright_mode) / 2
-        return thr
-
     def identify(self, size=8):
         h, w = self.frame.shape[:2]
         sh, sw = h // size, w // size
@@ -94,12 +61,12 @@ class BoardIdentification:
                 row = []
                 for c in range(size):
                     sq = self.frame[r * sh:(r + 1) * sh, c * sw:(c + 1) * sw]
-                    thr = self.get_local_threshold(r, c)
+                    thr, bright_node, dark_node = binary_treshold_finder.get_local_threshold(self.frame, r, c)
                     _, sq = cv2.threshold(sq, thr, 255, cv2.THRESH_BINARY)
 
                     ellipse_crop = EllipseCrop()
                     #Jest jakiś problem, wykrywa kółko tam gdzie go nie ma
-                    if ellipse_crop.find(sq, thr):
+                    if ellipse_crop.find(sq, thr, bright_node, dark_node):
                         sq = ellipse_crop.apply(sq)
                         color = self.detect_color(sq)
 

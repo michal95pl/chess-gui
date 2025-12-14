@@ -1,7 +1,6 @@
 from GUI.videoFrame import VideoFrame
 import tkinter as tk
 from image_processing.board_transformation import BoardTransformation
-from image_processing.board_identification import BoardIdentification
 
 class GamePage(VideoFrame):
 

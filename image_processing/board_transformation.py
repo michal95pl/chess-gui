@@ -24,8 +24,7 @@ class BoardTransformation:
 
     def get_corners(self, red_points, green_points):
         if len(red_points) != 1 or len(green_points) != 3:
-            print("Błąd: potrzebny 1 czerwony i 3 zielone punkty")
-            return None
+            raise Exception("Błąd: potrzebny 1 czerwony i 3 zielone punkty")
 
         red = red_points[0]
 
@@ -93,8 +92,8 @@ class BoardTransformation:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         found, corners = cv2.findChessboardCornersSB(gray, pattern_size, cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
         if not found:
-            print("Nie wykryto wzorca.")
-            return None
+            raise Exception("Nie wykryto wzorca.")
+
         corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1),
                                    (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
         pts = corners.reshape(-1, 2)
@@ -121,43 +120,52 @@ class BoardTransformation:
         self.green_hsv_calibration = self.__rgb2hsv(green_calibration)
         self.red_hsv_calibration = self.__rgb2hsv(red_calibration)
         self.root = root
-        self.identified_pieces = None
 
     def transform(self, frame):
-        # 1. work on a clean copy – never draw before masking
         clean = frame.copy()
+        hsv = cv2.cvtColor(clean, cv2.COLOR_RGB2HSV)
 
-        hsv_image = cv2.cvtColor(clean, cv2.COLOR_RGB2HSV)
+        # ---------- helpers ----------
+        g = np.array(self.green_hsv_calibration, dtype=np.int32)
+        r = np.array(self.red_hsv_calibration, dtype=np.int32)
 
-        # ------------------------------------------------------------------
-        # 2. build RED mask – use REAL hue of the dot you see *today*
-        #    (red wraps around 0° in HSV, so we need two ranges)
-        lower_red1 = np.array([0, 120, 70])
-        upper_red1 = np.array([10, 255, 255])
-        lower_red2 = np.array([170, 120, 70])
-        upper_red2 = np.array([180, 255, 255])
+        def make_bounds(centre, dH, dSV):
+            lower = np.clip([centre[0] - dH, centre[1] - dSV, centre[2] - dSV],
+                            [0, 0, 0], [179, 255, 255]).astype(np.uint8)
+            upper = np.clip([centre[0] + dH, centre[1] + dSV, centre[2] + dSV],
+                            [0, 0, 0], [179, 255, 255]).astype(np.uint8)
+            return lower, upper
 
-        red_mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
-        red_mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
-        red_mask = cv2.bitwise_or(red_mask1, red_mask2)
-        # morphological clean-up
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN,
-                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-        # ------------------------------------------------------------------
-        # 3. build GREEN mask – same idea, tune once
-        lower_green = np.array([40, 80, 70])
-        upper_green = np.array([80, 255, 255])
-        green_mask = cv2.inRange(hsv_image, lower_green, upper_green)
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN,
-                                      cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+        # ---------- green mask ----------
+        lo, hi = make_bounds(g, 15, 60)
+        green_mask = cv2.inRange(hsv, lo, hi)
 
-        # continue with your existing code …
-        green_centers = self.__get_color_centers(green_mask, clean, color=(0, 255, 0))
-        red_centers = self.__get_color_centers(red_mask, clean, color=(0, 0, 255))
+        # ---------- red mask (wrap-around) ----------
+        lo1, hi1 = make_bounds(r, 10, 60)
+        # if calibrated hue is <10 we need 0..calHue+10  AND  180-(10-calHue)..180
+        if r[0] < 10:
+            lo2 = np.array([180 - (10 - r[0]), lo1[1], lo1[2]], dtype=np.uint8)
+            hi2 = np.array([179, hi1[1], hi1[2]], dtype=np.uint8)
+            red_mask = cv2.bitwise_or(cv2.inRange(hsv, lo1, hi1),
+                                      cv2.inRange(hsv, lo2, hi2))
+        else:  # no wrap
+            red_mask = cv2.inRange(hsv, lo1, hi1)
+
+        # ---------- clean-up ----------
+        kernel = np.ones((5, 5), np.uint8)
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, kernel)
+        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
+
+        # ---------- continue ----------
+        green_centres = self.__get_color_centers(green_mask, clean, (0, 255, 0))
+        red_centres = self.__get_color_centers(red_mask, clean, (0, 0, 255))
+
+        # ---- rest of your code unchanged ----
+        green_centers = self.__get_color_centers(green_mask, clean, (0, 255, 0))
+        red_centers = self.__get_color_centers(red_mask, clean, (0, 0, 255))
 
         if green_centers is None or red_centers is None:
-            print("Error: Green and Red centers are not found.")
-            Logger.log("Error: Green and Red centers are not found.")
+            raise Exception("Error: Green and Red centers are not found.")
             return frame
         else:
             print("Green and Red centers are found.")
@@ -165,15 +173,14 @@ class BoardTransformation:
 
         corners = self.get_corners(red_centers, green_centers)
         if corners is None:
-            print("Nie można wykonać transformacji – niewłaściwa liczba punktów.")
-            return frame
+            raise Exception("Nie można wykonać transformacji – niewłaściwa liczba punktów.")
+
         #frame = self.transform_to_square(self.draw_diagonals(frame, corners), corners)
         frame = self.transform_to_square(frame, corners)
         cropped = self.crop_by_corners(frame)
         if cropped is not None:
             frame = cropped
 
-        self.identified_pieces = BoardIdentification(frame).identify()
         return frame
 
 

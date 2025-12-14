@@ -1,97 +1,78 @@
 import cv2
 import albumentations as A
 import numpy as np
+from image_processing import binary_treshold_finder
 
 class EllipseCrop(A.ImageOnlyTransform):
     def __init__(self, always_apply=True, p=1.0,
-                 step_visualize=False, timewait=0,
-                 min_area=50, max_area_ratio=0.8):
+                 step_visualize=False, timewait=500, scale = 1.1):
         super().__init__(always_apply, p)
         self.step_visualize = step_visualize
         self.timewait = timewait
-        self.min_area = min_area
-        self.max_area_ratio = max_area_ratio
+        self.scale = scale
 
     def _show(self, name, img):
         if self.step_visualize:
             cv2.imshow(name, img)
             cv2.waitKey(self.timewait)
 
-    def find(self, img, thr):
-        H, W = img.shape[:2]
+    def find(self, img, thr, bright_node, dark_node, debug=False, margin=1):
+        # Konwersja do szarości
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        _, th = cv2.threshold(img, thr, 255, cv2.THRESH_BINARY)
+        # Progowanie
+        _, th = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
 
-        edges = cv2.Canny(th, 80, 150)
-        edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), 1)
+        # Edge detection (opcjonalnie)
+        edges = cv2.Canny(th, bright_node-10, dark_node+10)
 
+        # Znalezienie konturów
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        max_area = H * W * self.max_area_ratio
-        best_ellipse = None
-        best_area = -1
-
+        # Filtruj kontury blisko krawędzi
+        H, W = img.shape[:2]
+        valid_contours = []
         for cnt in contours:
-            if len(cnt) < 30:  # odcięcie słabych konturów
-                continue
+            x, y, w, h = cv2.boundingRect(cnt)
+            if x > margin and y > margin and x + w < W - margin and y + h < H - margin:
+                valid_contours.append(cnt)
 
-            area = cv2.contourArea(cnt)
-            if area < self.min_area or area > max_area:
-                continue
+        if debug:
+            vis = img.copy()
+            cv2.drawContours(vis, valid_contours, -1, (0, 255, 0), 1)
+            cv2.imshow("Contours", vis)
+            cv2.waitKey(0)
+            cv2.destroyWindow("Contours")
 
-            peri = cv2.arcLength(cnt, True)
-            circularity = 4 * np.pi * area / (peri * peri)
-            if circularity < 0.3:
-                continue
-
-            if len(cnt) < 5:
-                continue
-
-            ellipse = cv2.fitEllipse(cnt)
-            (_, _), (w, h), _ = ellipse
-
-            ratio = max(w, h) / min(w, h)
-            if ratio > 1.15:  # ciaśniejsze ratio
-                continue
-
-            if area > best_area:
-                best_area = area
-                best_ellipse = ellipse
-
-        return best_ellipse is not None
+        return len(valid_contours) > 0
 
     def apply(self, img, **params):
         H, W = img.shape[:2]
+        vis = img.copy()
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        thr, b_node, d_node = binary_treshold_finder.get_threshold(img)
+        _, img = cv2.threshold(img, thr, 255, cv2.THRESH_BINARY)
 
         # ===== 1. PREPROCESS =====
         self._show("Gray", img)
 
-        _, th = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        self._show("Threshold", th)
-
-        edges = cv2.Canny(th, 100, 150)
+        edges = cv2.Canny(img, b_node, d_node)
         self._show("Edges", edges)
 
-        kernel = np.ones((3, 3), np.uint8)
+        kernel = np.ones((1, 1), np.uint8)
         edges = cv2.dilate(edges, kernel, iterations=1)
         self._show("Dilated", edges)
 
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        max_area = H * W * self.max_area_ratio
         best_ellipse = None
-        best_area = -1
+        best_score = -1  # score = area / ratio
 
-        # ===== 2. SZUKANIE NAJWIĘKSZEJ ELIPSY =====
         for cnt in contours:
-            if len(cnt) < 5:
+            if len(cnt) < 5 or cv2.contourArea(cnt) <= 0:
                 continue
 
             area = cv2.contourArea(cnt)
-            if area < self.min_area or area > max_area:
-                continue
 
             ellipse = cv2.fitEllipse(cnt)
             (cx, cy), (w, h), angle = ellipse
@@ -99,14 +80,24 @@ class EllipseCrop(A.ImageOnlyTransform):
             if any([np.isnan(cx), np.isnan(cy), np.isnan(w), np.isnan(h)]):
                 continue
 
-            # współczynnik kołowości – odcinamy zbyt długie kształty
-            ratio = max(w, h) / min(w, h)
-            if ratio > 1.3:
+            if w <= 0 or h <= 0:
                 continue
 
-            if area > best_area:
-                best_area = area
+            ratio = max(w, h) / min(w, h)
+            if ratio > 1.5:
+                continue
+
+            score = area / ratio
+            if best_ellipse is None:
                 best_ellipse = ellipse
+                best_score = score
+            elif score > best_score:
+                best_ellipse = ellipse
+                best_score = score
+
+            # ===== Rysowanie elipsy =====
+            cv2.ellipse(vis, ellipse, (0, 255, 0), 2)  # zielona elipsa
+            self._show("Ellipse", vis)
 
         # ===== 3. JEŚLI NIE MA ELIPSY → KOŁO NA CAŁE ZDJĘCIE =====
         if best_ellipse is None:
@@ -116,16 +107,25 @@ class EllipseCrop(A.ImageOnlyTransform):
 
         # ===== 4. MASKOWANIE TŁA =====
         (cx, cy), (w, h), angle = best_ellipse
-
+        w_scaled = w * self.scale
+        h_scaled = h * self.scale
+        best_ellipse_scaled = ((cx, cy), (w_scaled, h_scaled), angle)
         mask = np.zeros((H, W), dtype=np.uint8)
-        cv2.ellipse(mask, best_ellipse, 255, -1)  # wypełniona elipsa
-        self._show("Mask", mask)
 
+        # rysujemy elipsę tylko jeśli wymiary są poprawne
+        if w > 0 and h > 0:
+            cv2.ellipse(mask, best_ellipse_scaled, 255, -1)
+        else:
+            # brak poprawnej elipsy → rysujemy okrąg na całe zdjęcie
+            r = min(W, H) // 2
+            cv2.circle(mask, (W // 2, H // 2), r, 255, -1)
+
+        self._show("Mask", mask)
         masked = cv2.bitwise_and(img, img, mask=mask)
         self._show("Masked", masked)
 
         # ===== 5. PRZYCINANIE, ABY ELIPSA ZAJĘŁA CAŁY OBRAZ =====
-        w2, h2 = int(w/2), int(h/2)
+        w2, h2 = int(w_scaled/2), int(h_scaled/2)
         x1 = max(0, int(cx - w2))
         y1 = max(0, int(cy - h2))
         x2 = min(W, int(cx + w2))

@@ -16,7 +16,6 @@ root.iconphoto(False, tk.PhotoImage(file="assets/icon.png"))
 root.geometry("900x600")
 
 def color_calibration_page_listener(camera_index: int, green: tuple, red: tuple):
-    sleep(2) # todo: add sync between camera threads
     GamePage(root, camera_index, BoardTransformation(green, red, root))
 
 def camera_select_page_listener(camera_index: int):

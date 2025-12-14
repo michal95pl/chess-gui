@@ -1,10 +1,15 @@
 import os
 from threading import Thread, Lock
+from time import sleep
+
 from PIL import Image, ImageTk
 import tkinter as tk
 import cv2
+
+from image_processing.board_identification import BoardIdentification
 from image_processing.board_transformation import BoardTransformation
 from utils.logger import Logger
+from utils.jsonUpdater import JsonUpdater
 
 class VideoFrame(Thread):
 
@@ -18,6 +23,8 @@ class VideoFrame(Thread):
         self.board_transformation = board_transformation
         self.video_size = video_size
         self.test_image_path = "assets/board1.png"
+        self.identified_pieces = None
+        self.jsonUpdater = JsonUpdater()
 
         # create blank image for initialization
         blank_image = Image.new("RGB", (100, 100), color=(0, 0, 0))
@@ -50,9 +57,14 @@ class VideoFrame(Thread):
                 return
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = cv2.resize(frame, self.video_size)  # todo: change size
-            if self.board_transformation is not None:
+            frame = cv2.resize(frame, self.video_size)
+            try:
                 frame = self.board_transformation.transform(frame)
+                self.identified_pieces = BoardIdentification(frame).identify()
+                self.jsonUpdater.add(self.identified_pieces)
+            except Exception as e:
+                print(e)
+                Logger.log(e.__str__())
             self.actual_frame = frame
             self.show_frame(frame)
 
@@ -70,15 +82,20 @@ class VideoFrame(Thread):
                     print("Error: Could not read frame.")
                     break
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame = cv2.resize(frame, self.video_size) # todo: change size
-                if self.board_transformation is not None:
+                frame = cv2.resize(frame, self.video_size)
+                try:
                     frame = self.board_transformation.transform(frame)
+                    self.identified_pieces = BoardIdentification(frame).identify()
+                    self.jsonUpdater.add(self.identified_pieces)
+                except Exception as e:
+                    print(e)
+                    Logger.log(e.__str__())
                 self.actual_frame = frame
 
-                # it should be before show_frame function to make sure that thread stops immediately before showing new frame
                 if not self.update_video:
                     break
                 self.show_frame(frame)
+                sleep(2)
             cap.release()
 
     def __convert_frame_to_tk(self, frame):

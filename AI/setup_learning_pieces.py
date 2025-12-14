@@ -2,40 +2,11 @@ import cv2
 import os
 import glob
 import AI.Ellipse_crop
-import numpy as np
-import matplotlib.pyplot as plt
-
-
-def get_threshold(square):
-    hist = cv2.calcHist([square], [0], None, [256], [0, 256]).flatten()
-
-    # dwa największe mody
-    dark_mode = np.argmax(hist[1:128])
-    bright_mode = np.argmax(hist[128:]) + 128
-
-    thr = (dark_mode + bright_mode) / 2
-
-    #WIZUALIZACJA HISTOGRAMU
-
-    # plt.figure(figsize=(8, 4))
-    # plt.plot(hist, color='black')
-    # plt.axvline(dark_mode, color='blue', linestyle='--', label=f'Dark mode: {dark_mode}')
-    # plt.axvline(bright_mode, color='red', linestyle='--', label=f'Bright mode: {bright_mode}')
-    # plt.axvline(thr, color='green', linestyle='-', label=f'Threshold: {int(thr)}')
-    # plt.title("Histogram grayscale")
-    # plt.xlabel("Intensywność piksela")
-    # plt.ylabel("Liczba pikseli")
-    # plt.legend()
-    # plt.show()
-    # plt.pause(1)
-
-    return thr
 
 def cropp(square, filename):
     ellipse_crop = AI.Ellipse_crop.EllipseCrop()
     try:
         square = ellipse_crop.apply(square)
-        _, square = cv2.threshold(square, get_threshold(square), 255, cv2.THRESH_BINARY)
         cv2.imwrite(filename, square)
     except ValueError:
         print(f"Błąd przy cropie: {filename}, zapisuję oryginał")
