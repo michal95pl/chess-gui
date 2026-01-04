@@ -6,7 +6,13 @@ class JsonUpdater:
     def __init__(self, filename="data.json", capacity=3):
         self.filename = filename
         self.capacity = capacity
+        self.data = []
+        with open(self.filename, "w") as f:
+            json.dump(self.data, f)
+
+    def get_data(self):
         self.data = self._load()
+        return self.data
 
     def _load(self):
         if not os.path.exists(self.filename):
@@ -27,7 +33,7 @@ class JsonUpdater:
 
         self.data = self._load()
 
-        if self.data:
+        if len(self.data) > 0:
             last_board = chess.Board(self.data[-1])
             print(last_board)
             if str(fen).split()[0] == str(self.data[-1]).split()[0]:
@@ -35,7 +41,6 @@ class JsonUpdater:
             if not self.is_transition_possible(self.data[-1], fen):
                 raise ValueError("Niemożliwy ruch!")
 
-        # Dodanie nowego FEN
         self.data.append(fen)
 
         if len(self.data) > self.capacity:
@@ -50,35 +55,35 @@ class JsonUpdater:
         board = chess.Board.empty()
 
         piece_map = {
-            "Pawn": chess.PAWN,
-            "Rook": chess.ROOK,
-            "Knight": chess.KNIGHT,
-            "Bishop": chess.BISHOP,
-            "Queen": chess.QUEEN,
-            "King": chess.KING,
-        }
+            'P': chess.Piece(chess.PAWN, chess.WHITE),
+            'R': chess.Piece(chess.ROOK, chess.WHITE),
+            'N': chess.Piece(chess.KNIGHT, chess.WHITE),
+            'B': chess.Piece(chess.BISHOP, chess.WHITE),
+            'Q': chess.Piece(chess.QUEEN, chess.WHITE),
+            'K': chess.Piece(chess.KING, chess.WHITE),
 
-        color_map = {
-            "W": chess.WHITE,
-            "B": chess.BLACK
+            'p': chess.Piece(chess.PAWN, chess.BLACK),
+            'r': chess.Piece(chess.ROOK, chess.BLACK),
+            'n': chess.Piece(chess.KNIGHT, chess.BLACK),
+            'b': chess.Piece(chess.BISHOP, chess.BLACK),
+            'q': chess.Piece(chess.QUEEN, chess.BLACK),
+            'k': chess.Piece(chess.KING, chess.BLACK),
         }
 
         for row in range(8):
             for col in range(8):
                 cell = newlist[row][col]
 
-                if cell == "_":
+                if cell == ' ':
                     continue
 
                 try:
-                    color_char, piece_name = cell.split("_")
-                    color = color_map[color_char]
-                    piece_type = piece_map[piece_name]
+                    piece = piece_map[cell]
                 except Exception:
                     raise ValueError(f"Invalid cell value: {cell}")
 
                 square = chess.square(col, 7 - row)
-                board.set_piece_at(square, chess.Piece(piece_type, color))
+                board.set_piece_at(square, piece)
 
         return board
 

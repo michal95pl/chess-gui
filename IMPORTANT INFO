@@ -1,0 +1,6 @@
+1. Stwórz nowe zdjęcia ChessBoardów do ustawienia setup_learning_pieces, z mniejszą ilością odbijającego się światła
+2. Filc na szachownicy i pinkach, magnesy pod pod polami, by pionki nie wychodziły za granice
+
+Zaczynają biali
+Czerwona kropka identyfikuje lewy górny róg
+Pierwsza linia w json jest najstarsza

@@ -5,7 +5,7 @@ from image_processing import binary_treshold_finder
 
 class EllipseCrop(A.ImageOnlyTransform):
     def __init__(self, always_apply=True, p=1.0,
-                 step_visualize=False, timewait=500, scale = 1.1):
+                 step_visualize=True, timewait=500, scale = 1.1):
         super().__init__(always_apply, p)
         self.step_visualize = step_visualize
         self.timewait = timewait

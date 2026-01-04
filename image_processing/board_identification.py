@@ -52,6 +52,24 @@ class BoardIdentification:
 
         return "W" if mean_val > threshold else "B"
 
+    @staticmethod
+    def encode(piece_str: str) -> str:
+        color, name = piece_str.split('_', 1)
+        mapping = {
+            'King': 'K',
+            'Queen': 'Q',
+            'Rook': 'R',
+            'Bishop': 'B',
+            'Knight': 'N',
+            'Pawn': 'P'
+        }
+
+        letter = mapping.get(name, ' ')  # jeśli nieznana figura → puste
+        if color == 'B':
+            letter = letter.lower()  # czarne figury w małych literach
+
+        return letter
+
     def identify(self, size=8):
         h, w = self.frame.shape[:2]
         sh, sw = h // size, w // size
@@ -65,7 +83,6 @@ class BoardIdentification:
                     _, sq = cv2.threshold(sq, thr, 255, cv2.THRESH_BINARY)
 
                     ellipse_crop = EllipseCrop()
-                    #Jest jakiś problem, wykrywa kółko tam gdzie go nie ma
                     if ellipse_crop.find(sq, thr, bright_node, dark_node):
                         sq = ellipse_crop.apply(sq)
                         color = self.detect_color(sq)
@@ -74,10 +91,10 @@ class BoardIdentification:
                         pp = self.model(img)
                         pi = pp.argmax(1).item()
 
-                        row.append(f"{color}_{self.pieces[pi]}")
+                        row.append(self.encode(f"{color}_{self.pieces[pi]}"))
 
                     else:
-                        row.append("_")
+                        row.append(' ')
                 board.append(row)
 
         for a in board:

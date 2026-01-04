@@ -10,10 +10,12 @@ from image_processing.board_identification import BoardIdentification
 from image_processing.board_transformation import BoardTransformation
 from utils.logger import Logger
 from utils.jsonUpdater import JsonUpdater
+from communication.communication import Communication
+from GUI.ChessGUI import ChessGUI
 
 class VideoFrame(Thread):
 
-    def __init__(self, root, camera_index: int, video_size=(500, 500), board_transformation: BoardTransformation = None):
+    def __init__(self, root, camera_index: int, video_size=(500, 500), board_transformation: BoardTransformation = None, communication: Communication = None):
         super().__init__(daemon=True, name="VideoFrameThread")
 
         self.camera_index = camera_index
@@ -21,15 +23,20 @@ class VideoFrame(Thread):
         self.update_video = False
         self.actual_frame = None
         self.board_transformation = board_transformation
+        self.communication = communication
         self.video_size = video_size
-        self.test_image_path = "assets/board1.png"
+        self.test_image_path = "assets/board_test.png"
         self.identified_pieces = None
         self.jsonUpdater = JsonUpdater()
+        self.chess_gui = None
+        self.turn = 0
 
         # create blank image for initialization
+        self.video_frame = tk.Frame(root)
+        self.video_frame.pack(side=tk.LEFT)
+
         blank_image = Image.new("RGB", (100, 100), color=(0, 0, 0))
         self.video_label = tk.Label(root, image=ImageTk.PhotoImage(blank_image))
-        self.video_label.image = blank_image
         self.video_label.pack()
 
     def show_frame(self, frame):
@@ -62,6 +69,13 @@ class VideoFrame(Thread):
                 frame = self.board_transformation.transform(frame)
                 self.identified_pieces = BoardIdentification(frame).identify()
                 self.jsonUpdater.add(self.identified_pieces)
+                # if self.check_turn():
+                #     self.communication.send({
+                #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
+                #     })
+
+                if self.chess_gui is None:
+                    self.chess_gui = ChessGUI(self.root, self.get_board_state())
             except Exception as e:
                 print(e)
                 Logger.log(e.__str__())
@@ -87,6 +101,12 @@ class VideoFrame(Thread):
                     frame = self.board_transformation.transform(frame)
                     self.identified_pieces = BoardIdentification(frame).identify()
                     self.jsonUpdater.add(self.identified_pieces)
+                    if self.check_turn():
+                        self.communication.send({
+                            'command': 'get_move', 'boards': self.jsonUpdater.get_data()
+                        })
+                    if self.chess_gui is None:
+                        self.chess_gui = ChessGUI(self.root, self.get_board_state())
                 except Exception as e:
                     print(e)
                     Logger.log(e.__str__())
@@ -101,4 +121,15 @@ class VideoFrame(Thread):
     def __convert_frame_to_tk(self, frame):
         frame = Image.fromarray(frame)
         return ImageTk.PhotoImage(image=frame)
+
+    def get_board_state(self):
+        if self.identified_pieces:
+            return self.identified_pieces
+        return [[' '] * 8 for _ in range(8)]
+
+    def check_turn(self):
+        answear = self.turn % 2 == 0
+        print("White's turn." if answear else "Black's turn.")
+        self.turn += 1
+        return answear
 

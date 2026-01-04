@@ -1,9 +1,32 @@
 from GUI.videoFrame import VideoFrame
 import tkinter as tk
 from image_processing.board_transformation import BoardTransformation
+from communication.communication import Communication
+from GUI.ChessGUI import ChessGUI
 
-class GamePage(VideoFrame):
+class GamePage:
 
-    def __init__(self, root: tk.Tk, camera_index: int, board_transformation: BoardTransformation):
-        super().__init__(root, camera_index, (800, 600), board_transformation)
-        self.start()
+    def __init__(self, root: tk.Tk, camera_index: int, board_transformation: BoardTransformation, communication: Communication):
+        self.root = root
+
+        # ramki dla rozdzielenia widoków
+        self.left_frame = tk.Frame(root)
+        self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.right_frame = tk.Frame(root)
+        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+        # widok kamery
+        self.video_frame = VideoFrame(
+            self.left_frame,
+            camera_index,
+            video_size=(800, 800),
+            board_transformation=board_transformation,
+            communication=communication
+        )
+        self.video_frame.start()
+
+        # GUI szachownicy
+        self.chess_gui = ChessGUI(
+            self.right_frame,
+            self.video_frame.get_board_state
+        )
