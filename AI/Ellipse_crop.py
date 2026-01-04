@@ -5,7 +5,7 @@ from image_processing import binary_treshold_finder
 
 class EllipseCrop(A.ImageOnlyTransform):
     def __init__(self, always_apply=True, p=1.0,
-                 step_visualize=True, timewait=500, scale = 1.1):
+                 step_visualize=False, timewait=100, scale = 1.1):
         super().__init__(always_apply, p)
         self.step_visualize = step_visualize
         self.timewait = timewait
@@ -16,66 +16,37 @@ class EllipseCrop(A.ImageOnlyTransform):
             cv2.imshow(name, img)
             cv2.waitKey(self.timewait)
 
-    def find(self, img, thr, bright_node, dark_node, debug=False, margin=1):
-        # Konwersja do szarości
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
-        # Progowanie
-        _, th = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
-
-        # Edge detection (opcjonalnie)
-        edges = cv2.Canny(th, bright_node-10, dark_node+10)
-
-        # Znalezienie konturów
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Filtruj kontury blisko krawędzi
-        H, W = img.shape[:2]
-        valid_contours = []
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-            if x > margin and y > margin and x + w < W - margin and y + h < H - margin:
-                valid_contours.append(cnt)
-
-        if debug:
-            vis = img.copy()
-            cv2.drawContours(vis, valid_contours, -1, (0, 255, 0), 1)
-            cv2.imshow("Contours", vis)
-            cv2.waitKey(0)
-            cv2.destroyWindow("Contours")
-
-        return len(valid_contours) > 0
-
-    def apply(self, img, **params):
+    def detect_ellipse(self, img, thr, bright_node, dark_node):
         H, W = img.shape[:2]
         vis = img.copy()
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        thr, b_node, d_node = binary_treshold_finder.get_threshold(img)
-        _, img = cv2.threshold(img, thr, 255, cv2.THRESH_BINARY)
 
-        # ===== 1. PREPROCESS =====
-        self._show("Gray", img)
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        _, th = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
 
-        edges = cv2.Canny(img, b_node, d_node)
+        self._show("Gray", th)
+
+        edges = cv2.Canny(th, bright_node, dark_node)
         self._show("Edges", edges)
 
         kernel = np.ones((1, 1), np.uint8)
         edges = cv2.dilate(edges, kernel, iterations=1)
         self._show("Dilated", edges)
 
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
 
         best_ellipse = None
-        best_score = -1  # score = area / ratio
+        best_score = -1
 
         for cnt in contours:
             if len(cnt) < 5 or cv2.contourArea(cnt) <= 0:
                 continue
 
-            area = cv2.contourArea(cnt)
-
             ellipse = cv2.fitEllipse(cnt)
             (cx, cy), (w, h), angle = ellipse
+            area = cv2.contourArea(cnt)
+            ellipse_area = np.pi * (w / 2) * (h / 2)
 
             if any([np.isnan(cx), np.isnan(cy), np.isnan(w), np.isnan(h)]):
                 continue
@@ -87,17 +58,33 @@ class EllipseCrop(A.ImageOnlyTransform):
             if ratio > 1.5:
                 continue
 
+            if ellipse_area < H * W * 0.3 or ellipse_area > H * W * 0.6:
+                continue
+
             score = area / ratio
-            if best_ellipse is None:
-                best_ellipse = ellipse
-                best_score = score
-            elif score > best_score:
+
+            if best_ellipse is None or score > best_score:
                 best_ellipse = ellipse
                 best_score = score
 
-            # ===== Rysowanie elipsy =====
-            cv2.ellipse(vis, ellipse, (0, 255, 0), 2)  # zielona elipsa
+            cv2.ellipse(vis, ellipse, (0, 255, 0), 2)
             self._show("Ellipse", vis)
+
+        if self.step_visualize:
+            cv2.destroyAllWindows()
+
+        return best_ellipse
+
+    def find(self, img, thr, bright_node, dark_node):
+        ellipse = self.detect_ellipse(img, thr, bright_node, dark_node)
+        return ellipse is not None
+
+    def apply(self, img, thr, bright_node, dark_node):
+        H, W = img.shape[:2]
+        print(H,W)
+        vis = img.copy()
+
+        best_ellipse = self.detect_ellipse(vis, thr, bright_node, dark_node)
 
         # ===== 3. JEŚLI NIE MA ELIPSY → KOŁO NA CAŁE ZDJĘCIE =====
         if best_ellipse is None:

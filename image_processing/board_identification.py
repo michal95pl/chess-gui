@@ -4,15 +4,9 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from AI.Ellipse_crop import EllipseCrop
 from image_processing import binary_treshold_finder
-import numpy as np
 
 val_tf = A.Compose([
     A.Resize(30, 30),
-    A.ShiftScaleRotate(
-        rotate_limit=10,
-        border_mode=cv2.BORDER_REPLICATE,
-        p=0.4
-    ),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0),
     ToTensorV2()
 ])
@@ -33,7 +27,6 @@ class BoardIdentification:
             square = square[:, :, ::-1]  # BGR→RGB
         else:
             square = cv2.cvtColor(square, cv2.COLOR_GRAY2RGB)
-        square = cv2.resize(square, (100, 100))
         img = val_tf(image=square)['image'].unsqueeze(0)
         return img.to(self.device)
 
@@ -53,8 +46,7 @@ class BoardIdentification:
         return "W" if mean_val > threshold else "B"
 
     @staticmethod
-    def encode(piece_str: str) -> str:
-        color, name = piece_str.split('_', 1)
+    def encode_board(board_2d: list[list[str]]) -> list[list[str]]:
         mapping = {
             'King': 'K',
             'Queen': 'Q',
@@ -64,11 +56,21 @@ class BoardIdentification:
             'Pawn': 'P'
         }
 
-        letter = mapping.get(name, ' ')  # jeśli nieznana figura → puste
-        if color == 'B':
-            letter = letter.lower()  # czarne figury w małych literach
+        encoded_board = []
+        for row in board_2d:
+            encoded_row = []
+            for piece_str in row:
+                if piece_str == ' ' or piece_str is None:
+                    encoded_row.append(' ')
+                    continue
+                color, name = piece_str.split('_', 1)
+                letter = mapping.get(name, ' ')
+                if color == 'B':
+                    letter = letter.lower()
+                encoded_row.append(letter)
+            encoded_board.append(encoded_row)
 
-        return letter
+        return encoded_board
 
     def identify(self, size=8):
         h, w = self.frame.shape[:2]
@@ -84,14 +86,14 @@ class BoardIdentification:
 
                     ellipse_crop = EllipseCrop()
                     if ellipse_crop.find(sq, thr, bright_node, dark_node):
-                        sq = ellipse_crop.apply(sq)
+                        sq = ellipse_crop.apply(sq, thr, bright_node, dark_node)
                         color = self.detect_color(sq)
 
                         img = self.preprocess(sq)
                         pp = self.model(img)
                         pi = pp.argmax(1).item()
 
-                        row.append(self.encode(f"{color}_{self.pieces[pi]}"))
+                        row.append(f"{color}_{self.pieces[pi]}")
 
                     else:
                         row.append(' ')
@@ -99,4 +101,4 @@ class BoardIdentification:
 
         for a in board:
             print(a)
-        return board
+        return self.encode_board(board)

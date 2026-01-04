@@ -3,8 +3,6 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader, random_split
 from ChessCNN import ChessCNN
 
-
-IMG_SIZE = 100
 DATASET_DIR = "../assets/chess_pieces"
 PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
 
@@ -45,7 +43,6 @@ class ChessDataset(Dataset):
         path, piece = self.samples[idx]
 
         img = cv2.imread(path)[:, :, ::-1]
-        img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
 
         if self.transform:
             img = self.transform(image=img)['image']

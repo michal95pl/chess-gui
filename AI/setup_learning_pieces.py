@@ -12,7 +12,7 @@ def cropp(square, filename):
         print(f"Błąd przy cropie: {filename}, zapisuję oryginał")
         cv2.imwrite(filename, square)
 
-def duplicate(square, filename, a, b, steps_r=1, steps_d=1):
+def duplicate(square, filename, a, b, steps_r=8, steps_d=14):
     h, w = square.shape[:2]
     center = (w // 2, h // 2)
 
@@ -22,7 +22,7 @@ def duplicate(square, filename, a, b, steps_r=1, steps_d=1):
         for y in range(steps_d):
             cropp(rotated, os.path.join(filename, f"square_{a}_{b}_{x*(360 / steps_r)}_{y}.png"))
 
-def seperate(frame):
+def seperate(frame, name):
     output_dir = "../assets/chess_pieces"
     h, w, _ = frame.shape
     square_h = h // 8
@@ -35,7 +35,6 @@ def seperate(frame):
             square = frame[y1:y2, x1:x2]
 
             if y<=1 or y>=6:
-                color = None
                 figure = None
 
                 if (y == 1 or y == 6) and (x == 0 or x == 1):
@@ -56,18 +55,19 @@ def seperate(frame):
                             figure = "Queen"
 
                 os.makedirs(output_dir + f"/{figure}", exist_ok=True)
-                filename = os.path.join(output_dir + f"/{figure}", f"square_{y}_{x}.png")
+                filename = os.path.join(output_dir + f"/{figure}", f"{name}_{y}_{x}.png")
                 cropp(square, filename)
                 if figure in ["King", "Queen"]:
-                    duplicate(square, output_dir + f"/{figure}", y, x)
+                    duplicate(square, output_dir + f"/{figure}", y, x, 8, 30)
                 else:
                     duplicate(square, output_dir + f"/{figure}", y, x)
             else:
                 continue
 
 # Uruchomienie
-seperate(cv2.imread('../assets/ChessBoard1.png'))
-seperate(cv2.imread('../assets/ChessBoard2.png'))
+seperate(cv2.imread('../assets/ChessBoard1.png'),'Board1')
+seperate(cv2.imread('../assets/ChessBoard2.png'),'Board2')
+
 
 # Liczenie wygenerowanych obrazów
 for folder in os.listdir('../assets/chess_pieces'):
