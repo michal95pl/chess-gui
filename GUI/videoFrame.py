@@ -49,7 +49,7 @@ class VideoFrame(Thread):
 
     def _on_enter(self, event=None):
         if not self.start_flag:
-            print("START – analiza ruchów aktywna")
+            Logger.log("START – analiza ruchów aktywna")
             self.start_flag = True
 
     def show_frame(self, frame):
@@ -68,12 +68,10 @@ class VideoFrame(Thread):
         if self.camera_index == -1:
             if not os.path.exists(self.test_image_path):
                 Logger.log("Error: {test_image_path} not found.")
-                print("Error: {test_image_path} not found.")
                 return
             frame = cv2.imread(self.test_image_path)
             if frame is None:
                 Logger.log("Error: Could not read {test_image_path}.")
-                print("Error: Could not read {test_image_path}.")
                 return
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -83,6 +81,7 @@ class VideoFrame(Thread):
                 self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
                 if self.start_flag:
                     self.jsonUpdater.add(self.identified_pieces)
+                    Logger.log("Successfully added board to json file.")
                     # if self.check_turn():
                     #     self.communication.send({
                     #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
@@ -100,14 +99,12 @@ class VideoFrame(Thread):
             cap = cv2.VideoCapture(self.camera_index)
             if not cap.isOpened():
                 Logger.log("Error: Could not open video.")
-                print("Error: Could not open video.")
                 return
 
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     Logger.log("Error: Could not read frame.")
-                    print("Error: Could not read frame.")
                     break
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = cv2.resize(frame, self.video_size)

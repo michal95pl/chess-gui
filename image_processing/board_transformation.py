@@ -167,7 +167,6 @@ class BoardTransformation:
             raise Exception("Error: Green and Red centers are not found.")
             return frame
         else:
-            print("Green and Red centers are found.")
             Logger.log("Green and Red centers are found.")
 
         corners = self.get_corners(red_centers, green_centers)

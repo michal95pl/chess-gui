@@ -11,6 +11,7 @@ Logger.reset_log()
 Logger.log("Chess GUI started.")
 
 communication = Communication("localhost", 12345)
+Logger.log("Connected with server.")
 
 
 root = tk.Tk()
