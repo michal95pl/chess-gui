@@ -12,12 +12,10 @@ val_tf = A.Compose([
 ])
 
 class BoardIdentification:
-    def __init__(self, frame, model_path="AI/chess_best.pth", device=None):
+    def __init__(self, frame, board_model, device=None):
         self.frame = frame
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = ChessCNN(num_pieces=6)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
-        self.model.to(self.device).eval()
+        self.model = board_model
+        self.device = device
 
         self.pieces = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
         self.colors = ["W", "B"]
@@ -87,7 +85,7 @@ class BoardIdentification:
                     ellipse_crop = EllipseCrop()
                     if ellipse_crop.find(sq, thr, bright_node, dark_node):
                         sq = ellipse_crop.apply(sq, thr, bright_node, dark_node)
-                        color = self.detect_color(sq)
+                        color = self.detect_color(sq, thr)
 
                         img = self.preprocess(sq)
                         pp = self.model(img)

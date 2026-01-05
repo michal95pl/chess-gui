@@ -1,13 +1,13 @@
 import cv2
 import albumentations as A
 import numpy as np
-from image_processing import binary_treshold_finder
+import matplotlib.pyplot as plt
 
 class EllipseCrop(A.ImageOnlyTransform):
     def __init__(self, always_apply=True, p=1.0,
-                 step_visualize=False, timewait=100, scale = 1.1):
+                  timewait=500, scale = 1.1):
         super().__init__(always_apply, p)
-        self.step_visualize = step_visualize
+        self.step_visualize = None
         self.timewait = timewait
         self.scale = scale
 
@@ -16,7 +16,8 @@ class EllipseCrop(A.ImageOnlyTransform):
             cv2.imshow(name, img)
             cv2.waitKey(self.timewait)
 
-    def detect_ellipse(self, img, thr, bright_node, dark_node):
+    def detect_ellipse(self, img, thr, bright_node, dark_node, step_visualize=None):
+        self.step_visualize = step_visualize
         H, W = img.shape[:2]
         vis = img.copy()
 
@@ -75,16 +76,17 @@ class EllipseCrop(A.ImageOnlyTransform):
 
         return best_ellipse
 
-    def find(self, img, thr, bright_node, dark_node):
-        ellipse = self.detect_ellipse(img, thr, bright_node, dark_node)
+    def find(self, img, thr, bright_node, dark_node, step_visualize=False):
+        ellipse = self.detect_ellipse(img, thr, bright_node, dark_node, step_visualize=step_visualize)
         return ellipse is not None
 
-    def apply(self, img, thr, bright_node, dark_node):
+    def apply(self, img, thr, bright_node, dark_node, step_visualize=False):
         H, W = img.shape[:2]
-        print(H,W)
         vis = img.copy()
 
-        best_ellipse = self.detect_ellipse(vis, thr, bright_node, dark_node)
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        _, img = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
+        best_ellipse = self.detect_ellipse(vis, thr, bright_node, dark_node, step_visualize=step_visualize)
 
         # ===== 3. JEŚLI NIE MA ELIPSY → KOŁO NA CAŁE ZDJĘCIE =====
         if best_ellipse is None:

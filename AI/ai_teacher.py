@@ -1,6 +1,8 @@
 import os, cv2, torch, collections, albumentations as A
+import matplotlib.pyplot as plt
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader, random_split
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from ChessCNN import ChessCNN
 
 DATASET_DIR = "../assets/chess_pieces"
@@ -19,6 +21,7 @@ train_tf = A.Compose([
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0),
     ToTensorV2()
 ])
+#0.98
 
 
 # ---------- dataset ----------
@@ -65,6 +68,20 @@ def accuracy(model, loader, device):
         total += y.size(0)
     return correct / total
 
+@staticmethod
+def showChart(data):
+    plt.figure()
+    plt.plot(data)
+    plt.xlabel("Epoches")
+    plt.ylabel("Value")
+    plt.title("Training rate")
+    plt.grid(True)
+    ax = plt.gca()
+    ax.yaxis.set_major_locator(MultipleLocator(0.1))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    plt.savefig("training_chart.png", dpi=150, bbox_inches="tight")
+    plt.show()
+
 
 # ---------- main ----------
 def main():
@@ -88,7 +105,8 @@ def main():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
     best = 0
-    for epoch in range(30):
+    allEpoches = []
+    for epoch in range(20):
         model.train()
         running_loss, correct, total = 0., 0, 0
 
@@ -112,11 +130,13 @@ def main():
 
         print(f"epoch {epoch+1:02d}  loss {running_loss/len(train_loader):.3f}  train {train_acc:.3f}  val {val_acc:.3f}")
 
+        allEpoches.append((running_loss/len(train_loader), train_acc, val_acc))
         if val_acc > best:
             best = val_acc
             torch.save(model.state_dict(), "chess_best.pth")
 
     print("Done – best model saved. Best val acc:", best)
+    showChart(allEpoches)
 
 
 if __name__ == "__main__":

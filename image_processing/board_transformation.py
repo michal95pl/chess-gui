@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 
 from utils.logger import Logger
-from image_processing.board_identification import BoardIdentification
 
 
 class BoardTransformation:

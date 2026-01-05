@@ -2,17 +2,19 @@ import cv2
 import os
 import glob
 import AI.Ellipse_crop
+from image_processing import binary_treshold_finder
 
 def cropp(square, filename):
     ellipse_crop = AI.Ellipse_crop.EllipseCrop()
     try:
-        square = ellipse_crop.apply(square)
+        thr, bright_node, dark_node = binary_treshold_finder.get_threshold(square)
+        square = ellipse_crop.apply(square, thr, bright_node, dark_node)
         cv2.imwrite(filename, square)
     except ValueError:
         print(f"Błąd przy cropie: {filename}, zapisuję oryginał")
         cv2.imwrite(filename, square)
 
-def duplicate(square, filename, a, b, steps_r=8, steps_d=14):
+def duplicate(square, filename, a, b, steps_r=24, steps_d=12):
     h, w = square.shape[:2]
     center = (w // 2, h // 2)
 
@@ -58,15 +60,17 @@ def seperate(frame, name):
                 filename = os.path.join(output_dir + f"/{figure}", f"{name}_{y}_{x}.png")
                 cropp(square, filename)
                 if figure in ["King", "Queen"]:
-                    duplicate(square, output_dir + f"/{figure}", y, x, 8, 30)
+                    duplicate(square, output_dir + f"/{figure}", y, x, 24, 24)
                 else:
                     duplicate(square, output_dir + f"/{figure}", y, x)
             else:
                 continue
 
 # Uruchomienie
-seperate(cv2.imread('../assets/ChessBoard1.png'),'Board1')
-seperate(cv2.imread('../assets/ChessBoard2.png'),'Board2')
+seperate(cv2.imread('../assets/ChessBoard_Training_1.png'),'Board1')
+seperate(cv2.imread('../assets/ChessBoard_Training_2.png'),'Board2')
+seperate(cv2.imread('../assets/ChessBoard1.png'),'Board3')
+seperate(cv2.imread('../assets/ChessBoard2.png'),'Board4')
 
 
 # Liczenie wygenerowanych obrazów

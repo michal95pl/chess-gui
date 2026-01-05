@@ -1,6 +1,4 @@
-1. Popraw model ładowany dla każdej klatki
-2. Przekalibruj ai_teacher transformacje
-
 Zaczynają biali
 Czerwona kropka identyfikuje lewy górny róg
 Pierwsza linia w json jest najstarsza
+Należy wcisnąć enter, gdy początkowa szachownicy została poprawnie zidentyfikowana, by zacząć grę.
