@@ -77,18 +77,19 @@ class VideoFrame(Thread):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.resize(frame, self.video_size)
             try:
-                frame = self.board_transformation.transform(frame)
-                self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
-                if self.start_flag:
-                    self.jsonUpdater.add(self.identified_pieces)
-                    Logger.log("Successfully added board to json file.")
-                    # if self.check_turn():
-                    #     self.communication.send({
-                    #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
-                    #     })
+                if self.board_transformation is not None:
+                    frame = self.board_transformation.transform(frame)
+                    self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
+                    if self.start_flag:
+                        self.jsonUpdater.add(self.identified_pieces)
+                        Logger.log("Successfully added board to json file.")
+                        # if self.check_turn():
+                        #     self.communication.send({
+                        #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
+                        #     })
 
-                if self.chess_gui is None:
-                    self.chess_gui = ChessGUI(self.root, self.get_board_state())
+                    if self.chess_gui is None:
+                        self.chess_gui = ChessGUI(self.root, self.get_board_state())
             except Exception as e:
                 print(e)
                 Logger.log(e.__str__())
@@ -109,16 +110,17 @@ class VideoFrame(Thread):
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = cv2.resize(frame, self.video_size)
                 try:
-                    frame = self.board_transformation.transform(frame)
-                    self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
-                    if self.start_flag:
-                        self.jsonUpdater.add(self.identified_pieces)
-                        if self.check_turn():
-                            self.communication.send({
-                                'command': 'get_move', 'boards': self.jsonUpdater.get_data()
-                            })
-                    if self.chess_gui is None:
-                        self.chess_gui = ChessGUI(self.root, self.get_board_state())
+                    if self.board_transformation is not None:
+                        frame = self.board_transformation.transform(frame)
+                        self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
+                        if self.start_flag:
+                            self.jsonUpdater.add(self.identified_pieces)
+                            if self.check_turn():
+                                self.communication.send({
+                                    'command': 'get_move', 'boards': self.jsonUpdater.get_data()
+                                })
+                        if self.chess_gui is None:
+                            self.chess_gui = ChessGUI(self.root, self.get_board_state())
                 except Exception as e:
                     print(e)
                     Logger.log(e.__str__())

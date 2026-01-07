@@ -13,7 +13,6 @@ Logger.log("Chess GUI started.")
 communication = Communication("localhost", 12345)
 Logger.log("Connected with server.")
 
-
 root = tk.Tk()
 root.title("Chess GUI")
 root.iconphoto(False, tk.PhotoImage(file="assets/icon.png"))
