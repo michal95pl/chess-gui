@@ -17,7 +17,7 @@ from GUI.ChessGUI import ChessGUI
 
 class VideoFrame(Thread):
 
-    def __init__(self, root, camera_index: int, video_size=(500, 500), board_transformation: BoardTransformation = None, communication: Communication = None):
+    def __init__(self, root, camera_index: int, video_size=(500, 500), board_transformation: BoardTransformation = None, communication: Communication = None, camera_delay=False):
         super().__init__(daemon=True, name="VideoFrameThread")
 
         self.camera_index = camera_index
@@ -38,6 +38,7 @@ class VideoFrame(Thread):
         self.start_flag = False
         self.root.bind("<Return>", self._on_enter)
         self.turn = 0
+        self.camera_delay = camera_delay
 
         # create blank image for initialization
         self.video_frame = tk.Frame(root)
@@ -76,23 +77,19 @@ class VideoFrame(Thread):
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.resize(frame, self.video_size)
-            try:
-                if self.board_transformation is not None:
-                    frame = self.board_transformation.transform(frame)
-                    self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
-                    if self.start_flag:
-                        self.jsonUpdater.add(self.identified_pieces)
-                        Logger.log("Successfully added board to json file.")
-                        # if self.check_turn():
-                        #     self.communication.send({
-                        #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
-                        #     })
+            if self.board_transformation is not None:
+                frame = self.board_transformation.transform(frame)
+                self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
+                if self.start_flag:
+                    self.jsonUpdater.add(self.identified_pieces)
+                    Logger.log("Successfully added board to json file.")
+                    # if self.check_turn():
+                    #     self.communication.send({
+                    #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
+                    #     })
 
-                    if self.chess_gui is None:
-                        self.chess_gui = ChessGUI(self.root, self.get_board_state())
-            except Exception as e:
-                print(e)
-                Logger.log(e.__str__())
+                if self.chess_gui is None:
+                    self.chess_gui = ChessGUI(self.root, self.get_board_state)
             self.actual_frame = frame
             self.show_frame(frame)
 
@@ -120,7 +117,7 @@ class VideoFrame(Thread):
                                     'command': 'get_move', 'boards': self.jsonUpdater.get_data()
                                 })
                         if self.chess_gui is None:
-                            self.chess_gui = ChessGUI(self.root, self.get_board_state())
+                            self.chess_gui = ChessGUI(self.root, self.get_board_state)
                 except Exception as e:
                     print(e)
                     Logger.log(e.__str__())
@@ -129,7 +126,8 @@ class VideoFrame(Thread):
                 if not self.update_video:
                     break
                 self.show_frame(frame)
-                sleep(2)
+                if self.camera_delay:
+                    sleep(2)
             cap.release()
 
     def __convert_frame_to_tk(self, frame):

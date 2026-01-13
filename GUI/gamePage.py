@@ -21,7 +21,8 @@ class GamePage:
             camera_index,
             video_size=(800, 800),
             board_transformation=board_transformation,
-            communication=communication
+            communication=communication,
+            camera_delay=True
         )
         self.video_frame.start()
 
