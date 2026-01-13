@@ -13,7 +13,6 @@ from image_processing.board_transformation import BoardTransformation
 from utils.logger import Logger
 from utils.jsonUpdater import JsonUpdater
 from communication.communication import Communication
-from GUI.ChessGUI import ChessGUI
 
 class VideoFrame(Thread):
 
@@ -30,7 +29,6 @@ class VideoFrame(Thread):
         self.test_image_path = "assets/ChessBoard_1.png"
         self.identified_pieces = None
         self.jsonUpdater = JsonUpdater()
-        self.chess_gui = None
         self.model = ChessCNN(num_pieces=6)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.load_state_dict(torch.load("AI/chess_best.pth", map_location=self.device))
@@ -88,8 +86,6 @@ class VideoFrame(Thread):
                     #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
                     #     })
 
-                if self.chess_gui is None:
-                    self.chess_gui = ChessGUI(self.root, self.get_board_state)
             self.actual_frame = frame
             self.show_frame(frame)
 
@@ -116,8 +112,6 @@ class VideoFrame(Thread):
                                 self.communication.send({
                                     'command': 'get_move', 'boards': self.jsonUpdater.get_data()
                                 })
-                        if self.chess_gui is None:
-                            self.chess_gui = ChessGUI(self.root, self.get_board_state)
                 except Exception as e:
                     print(e)
                     Logger.log(e.__str__())
