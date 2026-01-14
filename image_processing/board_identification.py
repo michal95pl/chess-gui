@@ -71,6 +71,7 @@ class BoardIdentification:
         return encoded_board
 
     def identify(self, size=8):
+        #number = 0
         h, w = self.frame.shape[:2]
         sh, sw = h // size, w // size
         board = []
@@ -84,6 +85,10 @@ class BoardIdentification:
 
                     ellipse_crop = EllipseCrop()
                     if ellipse_crop.find(sq, thr, bright_node, dark_node):
+                        # if number == 0:
+                        #     sq = ellipse_crop.apply(sq, thr, bright_node, dark_node, step_visualize=True)
+                        #     number = 1
+                        # else:
                         sq = ellipse_crop.apply(sq, thr, bright_node, dark_node)
                         color = self.detect_color(sq, thr)
 

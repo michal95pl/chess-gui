@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 
 def hist_modification(hist):
     # WIZUALIZACJA HISTOGRAMU
+    dark_mode = np.argmax(hist[1:128])
+    bright_mode = np.argmax(hist[128:]) + 128
+    thr = (dark_mode + bright_mode) / 2
 
     # plt.figure(figsize=(8, 4))
     # plt.plot(hist, color='black')
@@ -18,10 +21,7 @@ def hist_modification(hist):
     # plt.show()
     # plt.pause(1)
 
-    dark_mode = np.argmax(hist[1:128])
-    bright_mode = np.argmax(hist[128:]) + 128
-
-    return (dark_mode + bright_mode) / 2, bright_mode, dark_mode
+    return thr, bright_mode, dark_mode
 
 def get_threshold(img):
     hist = cv2.calcHist([img], [0], None, [256], [0, 256]).flatten()

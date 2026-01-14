@@ -1,7 +1,6 @@
 import cv2
 import albumentations as A
 import numpy as np
-import matplotlib.pyplot as plt
 
 class EllipseCrop(A.ImageOnlyTransform):
     def __init__(self, always_apply=True, p=1.0,
@@ -13,7 +12,7 @@ class EllipseCrop(A.ImageOnlyTransform):
 
     def _show(self, name, img):
         if self.step_visualize:
-            cv2.imshow(name, img)
+            cv2.imwrite(f"image_processing/steps/identification_{name}.png", img)
             cv2.waitKey(self.timewait)
 
     def detect_ellipse(self, img, thr, bright_node, dark_node, step_visualize=None):
@@ -24,14 +23,14 @@ class EllipseCrop(A.ImageOnlyTransform):
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         _, th = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
 
-        self._show("Gray", th)
+        self._show("Gray1", th)
 
         edges = cv2.Canny(th, bright_node, dark_node)
-        self._show("Edges", edges)
+        self._show("Edges2", edges)
 
         kernel = np.ones((1, 1), np.uint8)
         edges = cv2.dilate(edges, kernel, iterations=1)
-        self._show("Dilated", edges)
+        self._show("Dilated3", edges)
 
         contours, _ = cv2.findContours(
             edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -69,7 +68,7 @@ class EllipseCrop(A.ImageOnlyTransform):
                 best_score = score
 
             cv2.ellipse(vis, ellipse, (0, 255, 0), 2)
-            self._show("Ellipse", vis)
+            self._show("Ellipse4", vis)
 
         if self.step_visualize:
             cv2.destroyAllWindows()
@@ -109,9 +108,9 @@ class EllipseCrop(A.ImageOnlyTransform):
             r = min(W, H) // 2
             cv2.circle(mask, (W // 2, H // 2), r, 255, -1)
 
-        self._show("Mask", mask)
+        self._show("Mask5", mask)
         masked = cv2.bitwise_and(img, img, mask=mask)
-        self._show("Masked", masked)
+        self._show("Masked6", masked)
 
         # ===== 5. PRZYCINANIE, ABY ELIPSA ZAJĘŁA CAŁY OBRAZ =====
         w2, h2 = int(w_scaled/2), int(h_scaled/2)
@@ -121,7 +120,7 @@ class EllipseCrop(A.ImageOnlyTransform):
         y2 = min(H, int(cy + h2))
 
         cropped = masked[y1:y2, x1:x2]
-        self._show("Cropped", cropped)
+        self._show("Cropped7", cropped)
 
         if self.step_visualize:
             cv2.destroyAllWindows()

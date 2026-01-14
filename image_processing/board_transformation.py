@@ -141,7 +141,6 @@ class BoardTransformation:
 
         # ---------- red mask (wrap-around) ----------
         lo1, hi1 = make_bounds(r, 10, 60)
-        # if calibrated hue is <10 we need 0..calHue+10  AND  180-(10-calHue)..180
         if r[0] < 10:
             lo2 = np.array([180 - (10 - r[0]), lo1[1], lo1[2]], dtype=np.uint8)
             hi2 = np.array([179, hi1[1], hi1[2]], dtype=np.uint8)
@@ -155,30 +154,41 @@ class BoardTransformation:
         green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, kernel)
         red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
 
-        # ---------- continue ----------
-        green_centres = self.__get_color_centers(green_mask, clean, (0, 255, 0))
-        red_centres = self.__get_color_centers(red_mask, clean, (0, 0, 255))
+        # Zapis masek (Etap 1: Detekcja kolorów)
+        cv2.imwrite("image_processing/steps/step1_green_mask.png", green_mask)
+        cv2.imwrite("image_processing/steps/step1_red_mask.png", red_mask)
 
         # ---- rest of your code unchanged ----
-        green_centers = self.__get_color_centers(green_mask, clean, (0, 255, 0))
-        red_centers = self.__get_color_centers(red_mask, clean, (0, 0, 255))
+        # Tworzymy kopię do narysowania punktów przed transformacją
+        points_preview = clean.copy()
+        green_centers = self.__get_color_centers(green_mask, points_preview, (0, 255, 0))
+        red_centers = self.__get_color_centers(red_mask, points_preview, (0, 0, 255))
 
         if green_centers is None or red_centers is None:
             raise Exception("Error: Green and Red centers are not found.")
-            return frame
-        else:
-            Logger.log("Green and Red centers are found.")
+
+        # Zapis wykrytych środków (Etap 2)
+        cv2.imwrite("image_processing/steps/step2_detected_centers.png", points_preview)
+        Logger.log("Green and Red centers are found.")
 
         corners = self.get_corners(red_centers, green_centers)
         if corners is None:
             raise Exception("Nie można wykonać transformacji – niewłaściwa liczba punktów.")
 
-        #frame = self.transform_to_square(self.draw_diagonals(frame, corners), corners)
-        frame = self.transform_to_square(frame, corners)
-        cropped = self.crop_by_corners(frame)
-        if cropped is not None:
-            frame = cropped
+        # Zapis przekątnych (Etap 3)
+        diagonals_img = clean.copy()
+        cv2.imwrite("image_processing/steps/step3_board_with_diagonals.png", self.draw_diagonals(diagonals_img, corners))
 
-        return frame
+        # Transformacja
+        transformed_frame = self.transform_to_square(frame, corners)
+        cv2.imwrite("image_processing/steps/step4_perspective_warped.png", transformed_frame)
+
+        # Kadrowanie (Final)
+        cropped = self.crop_by_corners(transformed_frame)
+        if cropped is not None:
+            cv2.imwrite("image_processing/steps/step5_final_cropped.png", cropped)
+            return cropped
+
+        return transformed_frame
 
 
