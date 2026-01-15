@@ -155,8 +155,8 @@ class BoardTransformation:
         red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
 
         # Zapis masek (Etap 1: Detekcja kolorów)
-        cv2.imwrite("image_processing/steps/step1_green_mask.png", green_mask)
-        cv2.imwrite("image_processing/steps/step1_red_mask.png", red_mask)
+        #cv2.imwrite("image_processing/steps/step1_green_mask.png", green_mask)
+        #cv2.imwrite("image_processing/steps/step1_red_mask.png", red_mask)
 
         # ---- rest of your code unchanged ----
         # Tworzymy kopię do narysowania punktów przed transformacją
@@ -168,7 +168,7 @@ class BoardTransformation:
             raise Exception("Error: Green and Red centers are not found.")
 
         # Zapis wykrytych środków (Etap 2)
-        cv2.imwrite("image_processing/steps/step2_detected_centers.png", points_preview)
+        #cv2.imwrite("image_processing/steps/step2_detected_centers.png", points_preview)
         Logger.log("Green and Red centers are found.")
 
         corners = self.get_corners(red_centers, green_centers)
@@ -177,16 +177,16 @@ class BoardTransformation:
 
         # Zapis przekątnych (Etap 3)
         diagonals_img = clean.copy()
-        cv2.imwrite("image_processing/steps/step3_board_with_diagonals.png", self.draw_diagonals(diagonals_img, corners))
+        #cv2.imwrite("image_processing/steps/step3_board_with_diagonals.png", self.draw_diagonals(diagonals_img, corners))
 
         # Transformacja
         transformed_frame = self.transform_to_square(frame, corners)
-        cv2.imwrite("image_processing/steps/step4_perspective_warped.png", transformed_frame)
+        #cv2.imwrite("image_processing/steps/step4_perspective_warped.png", transformed_frame)
 
         # Kadrowanie (Final)
         cropped = self.crop_by_corners(transformed_frame)
         if cropped is not None:
-            cv2.imwrite("image_processing/steps/step5_final_cropped.png", cropped)
+            #cv2.imwrite("image_processing/steps/step5_final_cropped.png", cropped)
             return cropped
 
         return transformed_frame

@@ -35,6 +35,7 @@ class VideoFrame(Thread):
         self.model.to(self.device).eval()
         self.start_flag = False
         self.root.bind("<Return>", self._on_enter)
+        self.root.focus_force()
         self.turn = 0
         self.camera_delay = camera_delay
 
@@ -49,6 +50,7 @@ class VideoFrame(Thread):
     def _on_enter(self, event=None):
         if not self.start_flag:
             Logger.log("START – analiza ruchów aktywna")
+            print("START – analiza ruchów aktywna")
             self.start_flag = True
 
     def show_frame(self, frame):
@@ -74,23 +76,18 @@ class VideoFrame(Thread):
                 return
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
             frame = cv2.resize(frame, self.video_size)
             if self.board_transformation is not None:
                 frame = self.board_transformation.transform(frame)
                 self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
-                if self.start_flag:
-                    self.jsonUpdater.add(self.identified_pieces)
-                    Logger.log("Successfully added board to json file.")
-                    # if self.check_turn():
-                    #     self.communication.send({
-                    #         'command': 'get_move', 'boards': self.jsonUpdater.get_data()
-                    #     })
+                self.jsonUpdater.add(self.identified_pieces)
 
             self.actual_frame = frame
             self.show_frame(frame)
 
         else:
-            cap = cv2.VideoCapture(self.camera_index)
+            cap = cv2.VideoCapture("http://192.168.220.108:8080/video")
             if not cap.isOpened():
                 Logger.log("Error: Could not open video.")
                 return
@@ -108,7 +105,7 @@ class VideoFrame(Thread):
                         self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
                         if self.start_flag:
                             self.jsonUpdater.add(self.identified_pieces)
-                            if self.check_turn():
+                            if self.check_turn() == False:
                                 self.communication.send({
                                     'command': 'get_move', 'boards': self.jsonUpdater.get_data()
                                 })
@@ -121,7 +118,7 @@ class VideoFrame(Thread):
                     break
                 self.show_frame(frame)
                 if self.camera_delay:
-                    sleep(2)
+                    sleep(1)
             cap.release()
 
     def __convert_frame_to_tk(self, frame):

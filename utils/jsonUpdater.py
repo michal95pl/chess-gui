@@ -1,6 +1,7 @@
 import json
 import os
 import chess
+from utils.logger import Logger
 
 class JsonUpdater:
     def __init__(self, filename="data.json", capacity=3):
@@ -37,11 +38,13 @@ class JsonUpdater:
             last_board = chess.Board(self.data[-1])
             print(last_board)
             if str(fen).split()[0] == str(self.data[-1]).split()[0]:
-                return
+                raise ValueError("Nothing to update")
             if not self.is_transition_possible(self.data[-1], fen):
                 raise ValueError("Niemożliwy ruch!")
 
         self.data.append(fen)
+        Logger.log("Successfully added board to json file.")
+        print("Successfully added board to json file.")
 
         if len(self.data) > self.capacity:
             self.data.pop(0)

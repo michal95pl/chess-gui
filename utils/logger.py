@@ -2,7 +2,7 @@ class Logger:
 
     @staticmethod
     def log(message: str):
-        print(message)
+        #print(message)
         with open("gui.log", "a") as f:
             f.write(message + "\n")
 

@@ -102,6 +102,6 @@ class BoardIdentification:
                         row.append(' ')
                 board.append(row)
 
-        for a in board:
-            print(a)
+        # for a in board:
+        #     print(a)
         return self.encode_board(board)
