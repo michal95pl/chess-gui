@@ -1,4 +1,6 @@
 import os
+import time
+
 import torch
 from threading import Thread, Lock
 from time import sleep
@@ -6,6 +8,7 @@ from time import sleep
 from PIL import Image, ImageTk
 import tkinter as tk
 import cv2
+from pyexpat.errors import messages
 
 from AI.ChessCNN import ChessCNN
 from image_processing.board_identification import BoardIdentification
@@ -66,6 +69,7 @@ class VideoFrame(Thread):
         self.update_video = False
 
     def run(self):
+        message = None
         if self.camera_index == -1:
             if not os.path.exists(self.test_image_path):
                 Logger.log("Error: {test_image_path} not found.")
@@ -104,11 +108,37 @@ class VideoFrame(Thread):
                         frame = self.board_transformation.transform(frame)
                         self.identified_pieces = BoardIdentification(frame, self.model, self.device).identify()
                         if self.start_flag:
-                            self.jsonUpdater.add(self.identified_pieces)
+                            if message == None:
+                                self.jsonUpdater.add(self.identified_pieces)
+                            else:
+                                self.jsonUpdater.add(self.identified_pieces, compare=message)
+                                message = None
                             if self.check_turn() == False:
                                 self.communication.send({
                                     'command': 'get_move', 'boards': self.jsonUpdater.get_data()
                                 })
+
+                                start = time.time()
+                                while True:
+                                    raw_msg = self.communication.get_message()
+                                    if raw_msg is not None:
+                                        if isinstance(raw_msg, dict):
+                                            move_to_apply = raw_msg.get('move')
+                                        else:
+                                            move_to_apply = str(raw_msg).split("move:")[-1].strip()
+
+                                        print(f"Wyodrębniony ruch: {move_to_apply}")
+                                        message = move_to_apply  # To zostanie użyte w następnej iteracji self.jsonUpdater.add
+                                        break
+
+                                    if time.time() - start > 15:  # Zwiększyłem do 15 zgodnie z Twoim Loggerem
+                                        Logger.log("Błąd: Serwer nie odpowiedział w ciągu 15 sekund.")
+                                        print("Błąd: Timeout komunikacji.")
+                                        message = None  # Czyścimy, żeby nie dodać śmieci przy następnej klatce
+                                        break
+
+                                    sleep(0.1)
+
                 except Exception as e:
                     print(e)
                     Logger.log(e.__str__())

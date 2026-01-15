@@ -21,7 +21,6 @@ class Communication(Thread):
             if data:
                 message = json.loads(data.decode('utf-8'))
                 self.queue.put(message)
-                print(self.get_message())
 
     def get_message(self):
         if not self.queue.empty():

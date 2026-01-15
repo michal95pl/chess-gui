@@ -28,28 +28,51 @@ class JsonUpdater:
         with open(self.filename, "w") as f:
             json.dump(self.data, f, indent=4)
 
-    def add(self, newlist):
-        board = self.convert_chessBoard(newlist)
-        fen = board.fen()
+    def add(self, newlist, compare=None):
+        camera_board = self.convert_chessBoard(newlist)
+        camera_fen_only = camera_board.board_fen()
 
         self.data = self._load()
 
-        if len(self.data) > 0:
-            last_board = chess.Board(self.data[-1])
-            print(last_board)
-            if str(fen).split()[0] == str(self.data[-1]).split()[0]:
-                raise ValueError("Nothing to update")
-            if not self.is_transition_possible(self.data[-1], fen):
-                raise ValueError("Niemożliwy ruch!")
+        final_board = camera_board
 
-        self.data.append(fen)
-        Logger.log("Successfully added board to json file.")
-        print("Successfully added board to json file.")
+        if len(self.data) > 0 and compare:
+            last_fen = self.data[-1]
+            validation_board = chess.Board(last_fen)
+
+            move = chess.Move.from_uci(compare)
+            if move in validation_board.legal_moves:
+                validation_board.push(move)
+
+                if validation_board.board_fen() != camera_fen_only:
+                    raise ValueError(f"Rozbieżność! Ruch {compare} nie zgadza się z widokiem kamery.")
+
+                final_board = validation_board
+            else:
+                raise ValueError(f"Ruch {compare} jest nielegalny w tej pozycji!")
+
+        if len(self.data) > 0 and not compare:
+            if camera_fen_only == chess.Board(self.data[-1]).board_fen():
+                raise ValueError("Brak zmian na planszy - nie dodano do pliku.")
+
+
+        if final_board.is_checkmate():
+            winner = "Black" if final_board.turn == chess.WHITE else "White"
+            error_msg = f"MAT! Wygrywa: {winner}"
+            Logger.log(error_msg)
+
+            raise Exception(error_msg)
+
+        # 5. Zapisywanie poprawnego stanu
+        final_fen = final_board.fen()
+        self.data.append(final_fen)
 
         if len(self.data) > self.capacity:
             self.data.pop(0)
 
         self._save()
+        Logger.log(f"Dodano FEN: {final_fen}")
+        print("Pomyślnie zaktualizowano stan szachownicy.")
 
     def convert_chessBoard(self, newlist):
         if len(newlist) != 8 or any(len(row) != 8 for row in newlist):
