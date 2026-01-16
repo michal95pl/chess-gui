@@ -4,6 +4,9 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader, random_split
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from ChessCNN import ChessCNN
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import pandas as pd
 
 DATASET_DIR = "../assets/chess_pieces"
 PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
@@ -69,17 +72,59 @@ def accuracy(model, loader, device):
     return correct / total
 
 @staticmethod
-def showChart(data):
-    plt.figure()
-    plt.plot(data)
-    plt.xlabel("Epoches")
-    plt.ylabel("Value")
-    plt.title("Training rate")
-    plt.grid(True)
+def showChart(allEpoches):
+    # Rozpakowujemy listę krotek na osobne listy
+    # allEpoches zawiera [(loss1, t_acc1, v_acc1), (loss2, t_acc2, v_acc2), ...]
+    losses, train_accs, val_accs = zip(*allEpoches)
+
+    plt.figure(figsize=(10, 6))
+
+    # Rysujemy każdą linię z etykietą (label), która trafi do legendy
+    plt.plot(losses, label="Loss (Strata)", color="gray", linestyle="--")
+    plt.plot(train_accs, label="Train Accuracy", color="blue", marker="o", markersize=4)
+    plt.plot(val_accs, label="Val Accuracy", color="red", marker="x", markersize=4)
+
+    plt.xlabel("Epoki")
+    plt.ylabel("Wartość")
+    plt.title("Proces uczenia modelu ChessCNN")
+
+    # Aktywacja legendy
+    plt.legend(loc="upper right")
+
+    plt.grid(True, which='both', linestyle='--', alpha=0.5)
+
+    # Ustawienia osi Y dla lepszej czytelności
     ax = plt.gca()
     ax.yaxis.set_major_locator(MultipleLocator(0.1))
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
+    # Zapis i pokazanie
     plt.savefig("training_chart.png", dpi=150, bbox_inches="tight")
+    plt.show()
+
+
+def plot_confusion_matrix(model, val_loader, device, pieces):
+    model.eval()
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for x, y in val_loader:
+            x, y = x.to(device), y.to(device)
+            out = model(x)
+            all_preds.extend(out.argmax(1).cpu().numpy())
+            all_labels.extend(y.cpu().numpy())
+
+    # Obliczanie macierzy
+    cm = confusion_matrix(all_labels, all_preds)
+    cm_df = pd.DataFrame(cm, index=pieces, columns=pieces)
+
+    # Rysowanie
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm_df, annot=True, fmt='d', cmap='Blues')
+    plt.title('Confusion Matrix - Chess Pieces')
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
     plt.show()
 
 
@@ -106,7 +151,7 @@ def main():
 
     best = 0
     allEpoches = []
-    for epoch in range(20):
+    for epoch in range(12):
         model.train()
         running_loss, correct, total = 0., 0, 0
 
@@ -137,6 +182,7 @@ def main():
 
     print("Done – best model saved. Best val acc:", best)
     showChart(allEpoches)
+    plot_confusion_matrix(model, val_loader, device, PIECES)
 
 
 if __name__ == "__main__":
