@@ -47,7 +47,6 @@ class JsonUpdater:
 
         # PRZYPADEK 1: Mamy ruch z serwera
         if len(self.data) > 0 and compare:
-            compare = self.flip_uci_move(compare) #trzeba dopracować
             last_fen = self.data[-1]
             validation_board = chess.Board(last_fen)
 
