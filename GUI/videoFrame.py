@@ -115,7 +115,7 @@ class VideoFrame(Thread):
                                 message = None
                             if self.check_turn() == False:
                                 self.communication.send({
-                                    'command': 'get_move', 'boards': self.jsonUpdater.get_data()
+                                    'command': 'get_move', 'boards': self.jsonUpdater.get_data()[::-1]
                                 })
 
                                 start = time.time()
