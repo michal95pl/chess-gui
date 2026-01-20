@@ -4,7 +4,7 @@ class ChessCNN(nn.Module):
     def __init__(self, num_pieces: int = 6):
         super().__init__()
         self.trunk = nn.Sequential(
-            nn.Conv2d(3, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
+            nn.Conv2d(1, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
 

@@ -29,7 +29,7 @@ class VideoFrame(Thread):
         self.board_transformation = board_transformation
         self.communication = communication
         self.video_size = video_size
-        self.test_image_path = "assets/ChessBoard_1.png"
+        self.test_image_path = "assets/Board_test.png"
         self.identified_pieces = None
         self.jsonUpdater = JsonUpdater()
         self.model = ChessCNN(num_pieces=6)
@@ -128,16 +128,16 @@ class VideoFrame(Thread):
                                             move_to_apply = str(raw_msg).split("move:")[-1].strip()
 
                                         print(f"Wyodrębniony ruch: {move_to_apply}")
-                                        message = move_to_apply  # To zostanie użyte w następnej iteracji self.jsonUpdater.add
+                                        message = move_to_apply
                                         break
 
-                                    if time.time() - start > 15:  # Zwiększyłem do 15 zgodnie z Twoim Loggerem
+                                    if time.time() - start > 15:
                                         Logger.log("Błąd: Serwer nie odpowiedział w ciągu 15 sekund.")
                                         print("Błąd: Timeout komunikacji.")
-                                        message = None  # Czyścimy, żeby nie dodać śmieci przy następnej klatce
+                                        message = None
                                         break
 
-                                    sleep(0.1)
+                                    sleep(0.2)
 
                 except Exception as e:
                     print(e)
@@ -162,6 +162,7 @@ class VideoFrame(Thread):
 
     def check_turn(self):
         answear = self.turn % 2 == 0
+        Logger.log("White's turn." if answear else "Black's turn.")
         print("White's turn." if answear else "Black's turn.")
         self.turn += 1
         return answear

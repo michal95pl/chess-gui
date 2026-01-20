@@ -4,6 +4,7 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader, random_split
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from ChessCNN import ChessCNN
+from image_processing import binary_treshold_finder
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import pandas as pd
@@ -13,15 +14,16 @@ PIECES = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"]
 
 # ---------- transforms ----------
 train_tf = A.Compose([
-    A.Resize(30, 30),
+    A.Resize(50, 50),
     A.ShiftScaleRotate(
         shift_limit=0.1,
         scale_limit=0.1,
-        rotate_limit=10,
+        rotate_limit=180,
         border_mode=cv2.BORDER_REPLICATE,
-        p=0.4
+        p=0.6
     ),
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0),
+    A.Perspective(scale=(0.05, 0.05), p=0.6),
+    A.Normalize(mean=(0.5,), std=(0.5,), p=1.0),
     ToTensorV2()
 ])
 #0.98
@@ -48,9 +50,13 @@ class ChessDataset(Dataset):
     def __getitem__(self, idx):
         path, piece = self.samples[idx]
 
-        img = cv2.imread(path)[:, :, ::-1]
+        # Wczytaj jako grayscale (1 kanał)
+        img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        thr, bright_node, dark_node = binary_treshold_finder.get_threshold(img)
+        _, img = cv2.threshold(img, thr, 255, cv2.THRESH_BINARY)
 
         if self.transform:
+            # Albumentations lepiej pracuje na (H, W, 1) lub (H, W)
             img = self.transform(image=img)['image']
         else:
             img = torch.tensor(img/255.0, dtype=torch.float32).permute(2,0,1)
@@ -151,7 +157,7 @@ def main():
 
     best = 0
     allEpoches = []
-    for epoch in range(12):
+    for epoch in range(15):
         model.train()
         running_loss, correct, total = 0., 0, 0
 

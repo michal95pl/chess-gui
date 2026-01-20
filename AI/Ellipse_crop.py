@@ -12,7 +12,8 @@ class EllipseCrop(A.ImageOnlyTransform):
 
     def _show(self, name, img):
         if self.step_visualize:
-            cv2.imwrite(f"image_processing/steps/identification_{name}.png", img)
+            cv2.imshow(name, img)
+            #cv2.imwrite(f"image_processing/steps/identification_{name}.png", img)
             cv2.waitKey(self.timewait)
 
     def detect_ellipse(self, img, thr, bright_node, dark_node, step_visualize=None):
@@ -20,7 +21,7 @@ class EllipseCrop(A.ImageOnlyTransform):
         H, W = img.shape[:2]
         vis = img.copy()
 
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, th = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
 
         self._show("Gray1", th)
@@ -58,7 +59,7 @@ class EllipseCrop(A.ImageOnlyTransform):
             if ratio > 1.5:
                 continue
 
-            if ellipse_area < H * W * 0.3 or ellipse_area > H * W * 0.6:
+            if ellipse_area < H * W * 0.2 or ellipse_area > H * W * 0.7:
                 continue
 
             score = area / ratio
@@ -76,6 +77,44 @@ class EllipseCrop(A.ImageOnlyTransform):
         return best_ellipse
 
     def find(self, img, thr, bright_node, dark_node, step_visualize=False):
+        H, W = img.shape[:2]
+
+        # 1. Wycinamy środek (80%) - usuwamy krawędzie szachownicy
+        margin_h = int(H * 0.1)  # 10% marginesu z góry i dołu
+        margin_w = int(W * 0.1)  # 10% marginesu z boków
+        center_roi = img[margin_h:H - margin_h, margin_w:W - margin_w]
+
+        if len(center_roi.shape) == 3:
+            gray = cv2.cvtColor(center_roi, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = center_roi
+
+        # 2. Binarizacja wyciętego środka
+        _, binary = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
+
+        # Obliczamy procent wypełnienia (tylko dla środka)
+        h_roi, w_roi = binary.shape[:2]
+        white_ratio = cv2.countNonZero(binary) / (h_roi * w_roi)
+
+        # Jeśli pole jest jednolite (czarne lub białe) po wycięciu brzegów -> PUSTE
+        # Zwiększyłem margines tolerancji, bo środek jest bardziej stabilny
+        if white_ratio > 0.98 or white_ratio < 0.02:
+            return False
+
+        # 3. Sprawdzenie krawędzi (Canny) na środku pola
+        # Robimy to na skali szarości, nie na binarnym (lepiej dla białe-na-białym)
+        edges = cv2.Canny(gray, int(bright_node * 0.4), int(dark_node * 0.4))
+        edge_density = np.sum(edges > 0) / (h_roi * w_roi)
+
+        # Pokazujemy debug jeśli trzeba
+        if step_visualize:
+            cv2.imshow("ROI_Edges", edges)
+
+        # Jeśli brak krawędzi w centrum -> PUSTE
+        if edge_density < 0.01:
+            return False
+
+        # 4. Jeśli przeszedł testy "środka", uruchamiamy pełną detekcję elipsy na całym polu
         ellipse = self.detect_ellipse(img, thr, bright_node, dark_node, step_visualize=step_visualize)
         return ellipse is not None
 
@@ -83,7 +122,7 @@ class EllipseCrop(A.ImageOnlyTransform):
         H, W = img.shape[:2]
         vis = img.copy()
 
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, img = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
         best_ellipse = self.detect_ellipse(vis, thr, bright_node, dark_node, step_visualize=step_visualize)
 

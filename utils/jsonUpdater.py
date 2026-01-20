@@ -28,15 +28,26 @@ class JsonUpdater:
         with open(self.filename, "w") as f:
             json.dump(self.data, f, indent=4)
 
+    def get_move_made(self, last_fen, current_pieces_fen):
+        board = chess.Board(last_fen)
+        for move in board.legal_moves:
+            board.push(move)
+            if board.board_fen() == current_pieces_fen:
+                board.pop()
+                return move
+            board.pop()
+        return None
+
     def add(self, newlist, compare=None):
         camera_board = self.convert_chessBoard(newlist)
         camera_fen_only = camera_board.board_fen()
-
         self.data = self._load()
 
         final_board = camera_board
 
+        # PRZYPADEK 1: Mamy ruch z serwera
         if len(self.data) > 0 and compare:
+            compare = self.flip_uci_move(compare) #trzeba dopracować
             last_fen = self.data[-1]
             validation_board = chess.Board(last_fen)
 
@@ -45,34 +56,53 @@ class JsonUpdater:
                 validation_board.push(move)
 
                 if validation_board.board_fen() != camera_fen_only:
-                    raise ValueError(f"Rozbieżność! Ruch {compare} nie zgadza się z widokiem kamery.")
+                    raise ValueError(f"Rozbieżność! Serwer: {compare}, Kamera widzi coś innego.")
 
                 final_board = validation_board
             else:
                 raise ValueError(f"Ruch {compare} jest nielegalny w tej pozycji!")
 
-        if len(self.data) > 0 and not compare:
-            if camera_fen_only == chess.Board(self.data[-1]).board_fen():
-                raise ValueError("Brak zmian na planszy - nie dodano do pliku.")
+                # PRZYPADEK 2: Gracz wykonał ruch
+        elif len(self.data) > 0 and not compare:
+            last_fen = self.data[-1]
+            old_board = chess.Board(last_fen)  # Ładujemy stary stan (z dobrą turą)
 
+            # 1. Sprawdź czy cokolwiek się zmieniło
+            if camera_fen_only == old_board.board_fen():
+                raise ValueError("Brak zmian na planszy.")
 
+            # 2. Znajdź jaki to był ruch
+            move = self.get_move_made(last_fen, camera_fen_only)
+
+            if move:
+                old_board.push(move)  # To automatycznie zmieni 'w' na 'b' w FEN!
+                final_board = old_board
+                Logger.log(f"Wykonano ruch: {move}")
+            else:
+                raise ValueError("Wykryto nielegalny ruch lub błąd rozpoznawania figury!")
+
+            move = self.get_move_made(last_fen, camera_board.fen())
+            Logger.log(f"Wykonano ruch: {move}")
+            print(f"Wykonano ruch: {move}")
+
+        # Sprawdzanie matu
         if final_board.is_checkmate():
             winner = "Black" if final_board.turn == chess.WHITE else "White"
             error_msg = f"MAT! Wygrywa: {winner}"
             Logger.log(error_msg)
-
             raise Exception(error_msg)
 
-        # 5. Zapisywanie poprawnego stanu
+        # Zapis
         final_fen = final_board.fen()
         self.data.append(final_fen)
-
         if len(self.data) > self.capacity:
             self.data.pop(0)
 
         self._save()
         Logger.log(f"Dodano FEN: {final_fen}")
         print("Pomyślnie zaktualizowano stan szachownicy.")
+        for row in newlist:
+            print(row)
 
     def convert_chessBoard(self, newlist):
         if len(newlist) != 8 or any(len(row) != 8 for row in newlist):
@@ -124,3 +154,25 @@ class JsonUpdater:
                 return True
             board_from.pop()
         return False
+
+    def flip_uci_move(self, uci_move: str) -> str:
+        if not uci_move or len(uci_move) < 4:
+            return uci_move
+
+        files = 'abcdefgh'
+        ranks = '12345678'
+
+        result = ""
+        # Przetwarzamy parami (pole startowe i pole docelowe)
+        for i in range(0, 4, 2):
+            f = uci_move[i]  # litera (kolumna)
+            r = uci_move[i + 1]  # cyfra (rząd)
+
+            # Lustrzane odbicie litery: a(0) -> h(7), b(1) -> g(6) itd.
+            new_f = files[7 - files.index(f)]
+            # Lustrzane odbicie cyfry: 1 -> 8, 2 -> 7 itd.
+            new_r = ranks[7 - ranks.index(r)]
+
+            result += new_f + new_r
+            print(result)
+        return result

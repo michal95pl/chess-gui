@@ -8,6 +8,7 @@ def cropp(square, filename):
     ellipse_crop = AI.Ellipse_crop.EllipseCrop()
     try:
         thr, bright_node, dark_node = binary_treshold_finder.get_threshold(square)
+        square = cv2.resize(square, (100, 100), interpolation=cv2.INTER_AREA)
         square = ellipse_crop.apply(square, thr, bright_node, dark_node)
         cv2.imwrite(filename, square)
     except ValueError:
@@ -67,10 +68,11 @@ def seperate(frame, name):
                 continue
 
 # Uruchomienie
-seperate(cv2.imread('../assets/ChessBoard_Training_1.png'),'Board1')
-seperate(cv2.imread('../assets/ChessBoard_Training_2.png'),'Board2')
-seperate(cv2.imread('../assets/ChessBoard1.png'),'Board3')
-seperate(cv2.imread('../assets/ChessBoard2.png'),'Board4')
+seperate(cv2.imread('../assets/prepare/B1.png'),'Board1')
+seperate(cv2.imread('../assets/prepare/B2.png'),'Board2')
+seperate(cv2.imread('../assets/prepare/B3.png'),'Board3')
+# seperate(cv2.imread('../assets/ChessBoard1.png'),'Board3')
+# seperate(cv2.imread('../assets/ChessBoard2.png'),'Board4')
 
 
 # Liczenie wygenerowanych obrazów
