@@ -71,9 +71,6 @@ def seperate(frame, name):
 seperate(cv2.imread('../assets/prepare/B1.png'),'Board1')
 seperate(cv2.imread('../assets/prepare/B2.png'),'Board2')
 seperate(cv2.imread('../assets/prepare/B3.png'),'Board3')
-# seperate(cv2.imread('../assets/ChessBoard1.png'),'Board3')
-# seperate(cv2.imread('../assets/ChessBoard2.png'),'Board4')
-
 
 # Liczenie wygenerowanych obrazów
 for folder in os.listdir('../assets/chess_pieces'):
